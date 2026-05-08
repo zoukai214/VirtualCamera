@@ -1,0 +1,9 @@
+build/
+output_verify/
+compile_commands.json
+*.o
+*.a
+*.so
+*.bin
+*.checkcode
+
