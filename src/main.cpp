@@ -41,7 +41,7 @@ void NormalizeToGolden(const std::string& input_root, const std::string& output_
 
 int GenerateVerify(const std::string& input_root, const std::string& config_path,
                    const std::string& output_root) {
-  const auto config = vc::ReadJson(config_path);
+  const auto config = vc::LoadThorConfig(config_path);
   const auto tasks = vc::BuildThorTasks(config);
 
   for (const auto& task : tasks) {
