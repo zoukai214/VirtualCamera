@@ -8,6 +8,48 @@
 namespace vc {
 namespace {
 
+void MergeJsonObject(const nlohmann::json& source, nlohmann::json* destination) {
+  if (!source.is_object()) {
+    throw std::runtime_error("included config must be a json object");
+  }
+
+  for (const auto& item : source.items()) {
+    const std::string& key = item.key();
+    const nlohmann::json& value = item.value();
+    if (destination->contains(key) && (*destination)[key].is_array() &&
+        value.is_array()) {
+      for (const auto& element : value) {
+        (*destination)[key].push_back(element);
+      }
+    } else {
+      (*destination)[key] = value;
+    }
+  }
+}
+
+nlohmann::json LoadIncludedThorConfig(const nlohmann::json& config,
+                                      const std::filesystem::path& config_dir) {
+  if (!config.at("include").is_array()) {
+    throw std::runtime_error("include must be an array");
+  }
+
+  nlohmann::json merged = nlohmann::json::object();
+  for (const auto& include_item : config.at("include")) {
+    if (!include_item.is_string()) {
+      throw std::runtime_error("include item must be a string");
+    }
+    const std::filesystem::path include_path =
+        config_dir / include_item.get<std::string>();
+    const auto child_config = ReadJson(include_path.string());
+    if (child_config.contains("include")) {
+      throw std::runtime_error("nested include is not supported: " +
+                               include_path.string());
+    }
+    MergeJsonObject(child_config, &merged);
+  }
+  return merged;
+}
+
 VirtualParam ParseVirtualParam(const nlohmann::json& camera) {
   VirtualParam param;
   param.virtual_width = camera.at("new_intrinsic").at("image_width").get<int>();
@@ -46,6 +88,20 @@ CameraTask ParseTask(const nlohmann::json& camera, TaskType type) {
 }
 
 }  // namespace
+
+nlohmann::json LoadThorConfig(const std::string& config_path) {
+  const auto config = ReadJson(config_path);
+  if (!config.is_object()) {
+    throw std::runtime_error("thor config must be a json object: " + config_path);
+  }
+  if (!config.contains("include")) {
+    return config;
+  }
+
+  const std::filesystem::path config_dir =
+      std::filesystem::path(config_path).parent_path();
+  return LoadIncludedThorConfig(config, config_dir);
+}
 
 std::vector<CameraTask> BuildThorTasks(const nlohmann::json& config) {
   std::vector<CameraTask> tasks;
