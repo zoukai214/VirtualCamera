@@ -43,3 +43,16 @@ A passing run prints:
 ```text
 verification passed
 ```
+
+## Generate And Verify 4V
+
+```bash
+bash scripts/build.sh
+bash scripts/run_4v_verify.sh
+```
+
+The 4V command keeps the original YAML style from `gdc_add_cylinder`:
+
+```bash
+./build/virtual_camera_tool generate-4v <config.yaml>
+```

@@ -1,5 +1,6 @@
 #include "virtual_camera/json_utils.h"
 #include "virtual_camera/json_writer.h"
+#include "virtual_camera/four_view_runner.h"
 #include "virtual_camera/map_generator.h"
 #include "virtual_camera/task_builder.h"
 #include "virtual_camera/verifier.h"
@@ -84,9 +85,19 @@ int GenerateVerify(const std::string& input_root, const std::string& config_path
 }  // namespace
 
 int main(int argc, char** argv) {
+  if (argc == 3 && std::string(argv[1]) == "generate-4v") {
+    try {
+      return vc::RunFourViewGenerate(argv[2]);
+    } catch (const std::exception& ex) {
+      std::cerr << ex.what() << "\n";
+      return 1;
+    }
+  }
+
   if (argc != 5 || std::string(argv[1]) != "generate-verify") {
     std::cerr << "Usage: " << argv[0]
-              << " generate-verify <input_root> <config_path> <output_root>\n";
+              << " generate-verify <input_root> <config_path> <output_root>\n"
+              << "       " << argv[0] << " generate-4v <config.yaml>\n";
     return 1;
   }
 

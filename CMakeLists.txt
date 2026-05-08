@@ -11,7 +11,10 @@ set(REF_DEPS_ROOT /workspace/icv_vc_bin_lib/deps/x86)
 set(REF_OPENCV_ROOT ${REF_DEPS_ROOT}/opencv)
 set(REF_EIGEN_ROOT ${REF_DEPS_ROOT}/eigen3-3.3.9)
 
+find_package(yaml-cpp REQUIRED)
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
+include_directories(${PROJECT_SOURCE_DIR}/third_party/gdc_add_cylinder/include)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/nlohmann_json/include)
 include_directories(${REF_EIGEN_ROOT}/include/eigen3)
 include_directories(${REF_OPENCV_ROOT}/include)
@@ -23,6 +26,15 @@ foreach(source_file
     src/map_generator.cpp
     src/json_writer.cpp
     src/verifier.cpp
+    src/four_view_runner.cpp
+    third_party/gdc_add_cylinder/src/bin_file_io.cpp
+    third_party/gdc_add_cylinder/src/camera_maps_generator.cpp
+    third_party/gdc_add_cylinder/src/camera_params_loader.cpp
+    third_party/gdc_add_cylinder/src/config_loader.cpp
+    third_party/gdc_add_cylinder/src/cylinder_map.cpp
+    third_party/gdc_add_cylinder/src/data_types.cpp
+    third_party/gdc_add_cylinder/src/simple_json_parser.cpp
+    third_party/gdc_add_cylinder/src/weight_calculator.cpp
 )
     if(EXISTS ${PROJECT_SOURCE_DIR}/${source_file})
         list(APPEND VIRTUAL_CAMERA_CORE_SOURCES ${source_file})
@@ -43,6 +55,7 @@ target_link_libraries(virtual_camera_core PUBLIC
     pthread
     rt
     dl
+    yaml-cpp
 )
 
 if(EXISTS ${PROJECT_SOURCE_DIR}/src/main.cpp)
@@ -58,4 +71,14 @@ endif()
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_verifier.cpp)
     add_executable(test_verifier tests/test_verifier.cpp)
     target_link_libraries(test_verifier PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_four_view_config.cpp)
+    add_executable(test_four_view_config tests/test_four_view_config.cpp)
+    target_link_libraries(test_four_view_config PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_four_view_camera_params.cpp)
+    add_executable(test_four_view_camera_params tests/test_four_view_camera_params.cpp)
+    target_link_libraries(test_four_view_camera_params PRIVATE virtual_camera_core)
 endif()
