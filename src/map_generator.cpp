@@ -4,6 +4,7 @@
 
 #include <opencv2/calib3d.hpp>
 #include <opencv2/core/eigen.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -27,9 +28,9 @@ MapGenerator::MapGenerator(const CalibrationParam& calibration,
 
 Eigen::Matrix4d MapGenerator::BuildVirtualExtrinsic() const {
   Eigen::Matrix4d extrinsic = Eigen::Matrix4d::Identity();
-  double yaw = virtual_param_.virtual_yaw;
+  double yaw = 0.0;
   double pitch = 0.0;
-  double roll = virtual_param_.virtual_roll;
+  double roll = virtual_param_.virtual_yaw;
 
   // VCS 坐标系转换到 OpenCV 相机坐标系。
   yaw -= 90.0;
@@ -87,12 +88,14 @@ cv::Mat MapGenerator::BuildCameraMatrix() const {
   return camera_matrix;
 }
 
-cv::Mat MapGenerator::BuildDistortion(int count) const {
+cv::Mat MapGenerator::BuildDistortion(int count, bool convert_to_float) const {
   const int actual_count = std::min<int>(count, calibration_.dist_data.size());
   std::vector<double> dist(calibration_.dist_data.begin(),
                            calibration_.dist_data.begin() + actual_count);
   cv::Mat distortion(dist, true);
-  distortion.convertTo(distortion, CV_32F);
+  if (convert_to_float) {
+    distortion.convertTo(distortion, CV_32F);
+  }
   return distortion.reshape(0, actual_count);
 }
 
@@ -102,7 +105,7 @@ std::vector<cv::Mat> MapGenerator::CreateVirtualMap(bool fisheye_model) const {
       calibration_.extrinsic_matrix.block<3, 3>(0, 0);
 
   cv::Mat camera_matrix = BuildCameraMatrix();
-  cv::Mat distortion = BuildDistortion(fisheye_model ? 4 : 8);
+  cv::Mat distortion = BuildDistortion(fisheye_model ? 4 : 8, true);
   cv::Mat rotation_new = cv::Mat::zeros(3, 3, CV_64FC1);
   cv::Mat projection = cv::Mat::zeros(3, 3, CV_64FC1);
   cv::eigen2cv(rotation, rotation_new);
@@ -126,7 +129,7 @@ std::vector<cv::Mat> MapGenerator::CreateVirtualMap(bool fisheye_model) const {
 
 std::vector<cv::Mat> MapGenerator::CreateUndistortMap() const {
   cv::Mat camera_matrix = BuildCameraMatrix();
-  cv::Mat distortion = BuildDistortion(4);
+  cv::Mat distortion = BuildDistortion(4, false);
   cv::Mat rotation_new = cv::Mat::eye(3, 3, CV_64FC1);
   cv::Mat projection = cv::Mat::zeros(3, 3, CV_64FC1);
   projection.at<double>(0, 0) =
@@ -149,7 +152,7 @@ std::vector<cv::Mat> MapGenerator::CreateUndistortMap() const {
 
 std::vector<cv::Mat> MapGenerator::CreateResizeMap(Eigen::Matrix3d* resized_intrinsic) const {
   cv::Mat camera_matrix = BuildCameraMatrix();
-  cv::Mat distortion = BuildDistortion(4);
+  cv::Mat distortion = BuildDistortion(4, false);
   cv::Mat rotation_new = cv::Mat::eye(3, 3, CV_64FC1);
 
   Eigen::Matrix3d intrinsic = Eigen::Matrix3d::Identity();

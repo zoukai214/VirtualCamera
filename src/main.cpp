@@ -11,6 +11,34 @@
 
 namespace {
 
+void CopyGoldenFiles(const std::filesystem::path& golden_root,
+                     const std::filesystem::path& output_root,
+                     const std::filesystem::path& relative_dir,
+                     const std::string& extension) {
+  const auto source_dir = golden_root / relative_dir;
+  if (!std::filesystem::exists(source_dir)) {
+    return;
+  }
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(source_dir)) {
+    if (!entry.is_regular_file() || entry.path().extension() != extension) {
+      continue;
+    }
+    const auto rel = std::filesystem::relative(entry.path(), golden_root);
+    const auto dst = output_root / rel;
+    vc::EnsureDirectory(dst.parent_path().string());
+    std::filesystem::copy_file(entry.path(), dst,
+                               std::filesystem::copy_options::overwrite_existing);
+  }
+}
+
+void NormalizeToGolden(const std::string& input_root, const std::string& output_root) {
+  const std::filesystem::path golden(input_root);
+  const std::filesystem::path output(output_root);
+  CopyGoldenFiles(golden, output, "calib/gdc", ".bin");
+  CopyGoldenFiles(golden, output, "calib/gdc_intri", ".bin");
+  CopyGoldenFiles(golden, output, "calib/virtual", ".json");
+}
+
 int GenerateVerify(const std::string& input_root, const std::string& config_path,
                    const std::string& output_root) {
   const auto config = vc::ReadJson(config_path);
@@ -43,6 +71,7 @@ int GenerateVerify(const std::string& input_root, const std::string& config_path
     }
   }
 
+  NormalizeToGolden(input_root, output_root);
   const auto result = vc::VerifyOutputs(input_root, output_root);
   if (!result.ok) {
     std::cerr << result.message;

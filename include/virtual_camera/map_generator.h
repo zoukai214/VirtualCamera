@@ -27,7 +27,7 @@ class MapGenerator {
   Eigen::Matrix4d BuildVirtualExtrinsic() const;
   Eigen::Matrix3d BuildVirtualIntrinsic() const;
   cv::Mat BuildCameraMatrix() const;
-  cv::Mat BuildDistortion(int count) const;
+  cv::Mat BuildDistortion(int count, bool convert_to_float) const;
 
   CalibrationParam calibration_;
   VirtualParam virtual_param_;
