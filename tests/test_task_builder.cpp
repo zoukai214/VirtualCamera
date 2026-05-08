@@ -1,25 +1,43 @@
 #include "virtual_camera/json_utils.h"
+#include "virtual_camera/task_builder.h"
 
-#include <filesystem>
-#include <fstream>
 #include <iostream>
+#include <set>
 
 int main() {
-  const std::filesystem::path path = "build/test_json_utils.json";
-  std::ofstream out(path);
-  out << R"({"matrix":[[1,2,3],[4,5,6],[7,8,9]],"dist":[[0.1,0.2,0.3,0.4]]})";
-  out.close();
+  const auto config = vc::ReadJson("configs/config_thor.json");
+  const auto tasks = vc::BuildThorTasks(config);
 
-  const auto json = vc::ReadJson(path.string());
-  const auto matrix = vc::JsonToMatrix3d(json.at("matrix"));
-  const auto dist = vc::JsonToVector(json.at("dist"));
+  int virtual_count = 0;
+  int undistort_count = 0;
+  int resize_count = 0;
+  std::set<std::string> bin_names;
 
-  if (matrix(0, 0) != 1.0 || matrix(2, 2) != 9.0) {
-    std::cerr << "matrix conversion failed\n";
+  for (const auto& task : tasks) {
+    bin_names.insert(task.bin_name);
+    if (task.type == vc::TaskType::kVirtual) {
+      ++virtual_count;
+    } else if (task.type == vc::TaskType::kUndistort) {
+      ++undistort_count;
+    } else if (task.type == vc::TaskType::kResize) {
+      ++resize_count;
+    }
+  }
+
+  if (virtual_count != 9) {
+    std::cerr << "expected 9 virtual tasks, got " << virtual_count << "\n";
     return 1;
   }
-  if (dist.size() != 4 || dist[2] != 0.3) {
-    std::cerr << "vector conversion failed\n";
+  if (undistort_count != 7) {
+    std::cerr << "expected 7 undistort tasks, got " << undistort_count << "\n";
+    return 1;
+  }
+  if (resize_count != 3) {
+    std::cerr << "expected 3 resize tasks, got " << resize_count << "\n";
+    return 1;
+  }
+  if (!bin_names.count("gdc_ft30.bin") || !bin_names.count("gdc_fw120_1080.bin")) {
+    std::cerr << "expected Thor bin names are missing\n";
     return 1;
   }
   return 0;
