@@ -1,0 +1,91 @@
+{
+  "virtual_init_camera_config": [
+    {
+      "fov": 30,
+      "image_height": 2160,
+      "image_width": 3840,
+      "pipeline": "0",
+      "desc": "front fov30->front fov 30",
+      "conf_json": "center_camera_ft_1080",
+      "intri_json": "center_camera_fov30/center_camera_fov30-intrinsic.json",
+      "extri_json": "center_camera_fov30/center_camera_fov30-to-car_center-extrinsic.json",
+      "conf_intri_key": "value0",
+      "conf_extri_key": "value0",
+      "calib_json": "calib_cam_front_narrow_fov30_1080.json",
+      "camera_id": 0,
+      "bin_name": "gdc_ft30_1080.bin",
+      "new_intrinsic": {
+        "fov": 30,
+        "focal_u": 1910.8,
+        "focal_v": 1910.8,
+        "center_u": 512.0,
+        "center_v": 256.0,
+        "image_width": 1920,
+        "image_height": 1088
+      },
+      "new_extrinsics": {
+        "pitch": 0.0,
+        "roll": 0.0,
+        "yaw": 0.0
+      }
+    },
+    {
+      "fov": 110,
+      "image_height": 2160,
+      "image_width": 3840,
+      "pipeline": "1",
+      "desc": "front fov120->front fov 120",
+      "conf_json": "center_camera_fw120_1080",
+      "intri_json": "center_camera_fov120/center_camera_fov120-intrinsic.json",
+      "extri_json": "center_camera_fov120/center_camera_fov120-to-car_center-extrinsic.json",
+      "conf_intri_key": "value0",
+      "conf_extri_key": "value0",
+      "calib_json": "calib_cam_front_wide_fov120.json",
+      "camera_id": 1,
+      "bin_name": "gdc_fw120_1080.bin",
+      "new_intrinsic": {
+        "fov": 110,
+        "focal_u": 358.5,
+        "focal_v": 358.5,
+        "center_u": 512.0,
+        "center_v": 256.0,
+        "image_width": 1920,
+        "image_height": 1088
+      },
+      "new_extrinsics": {
+        "pitch": 0.0,
+        "roll": 0.0,
+        "yaw": 0.0
+      }
+    },
+    {
+      "fov": 110,
+      "image_height": 2160,
+      "image_width": 3840,
+      "pipeline": "2",
+      "desc": "front fov120->front resize fov120",
+      "conf_json": "center_camera_fw60_1080",
+      "intri_json": "center_camera_fov120/center_camera_fov120-intrinsic.json",
+      "extri_json": "center_camera_fov120/center_camera_fov120-to-car_center-extrinsic.json",
+      "conf_intri_key": "value0",
+      "conf_extri_key": "value0",
+      "calib_json": "calib_cam_front_wide_fov60.json",
+      "camera_id": 2,
+      "bin_name": "gdc_fw60_1080.bin",
+      "new_intrinsic": {
+        "fov": 60,
+        "focal_u": 886.8,
+        "focal_v": 886.8,
+        "center_u": 512.0,
+        "center_v": 256.0,
+        "image_width": 1920,
+        "image_height": 1088
+      },
+      "new_extrinsics": {
+        "pitch": 0.0,
+        "roll": 0.0,
+        "yaw": 0.0
+      }
+    }
+  ]
+}

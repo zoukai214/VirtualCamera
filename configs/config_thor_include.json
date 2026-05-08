@@ -1,0 +1,7 @@
+{
+  "include": [
+    "thor/common.json",
+    "thor/virtual_camera_configs.json",
+    "thor/virtual_init_camera_config.json"
+  ]
+}
