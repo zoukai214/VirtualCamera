@@ -82,3 +82,8 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_four_view_camera_params.cpp)
     add_executable(test_four_view_camera_params tests/test_four_view_camera_params.cpp)
     target_link_libraries(test_four_view_camera_params PRIVATE virtual_camera_core)
 endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_jobs.cpp)
+    add_executable(test_jobs tests/test_jobs.cpp)
+    target_link_libraries(test_jobs PRIVATE virtual_camera_core)
+endif()
