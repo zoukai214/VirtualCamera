@@ -64,6 +64,17 @@ bool TestParseJobs() {
     return false;
   }
 
+  const char* verify_argv[] = {"tool", "generate-verify", "input",
+                               "config.json", "output", "--jobs", "2"};
+  if (!vc::ParseOptionalJobs(7, verify_argv, 5, &config)) {
+    std::cerr << "generate-verify --jobs 2 should parse\n";
+    return false;
+  }
+  if (config.auto_jobs || config.jobs != 2) {
+    std::cerr << "generate-verify --jobs 2 should produce explicit jobs=2\n";
+    return false;
+  }
+
   return true;
 }
 

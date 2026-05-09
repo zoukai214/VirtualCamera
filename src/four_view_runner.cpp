@@ -87,7 +87,8 @@ void GenerateCylinderMaps(const ConfigLoader::CylinderConfig& cylinder_config,
 
 }  // namespace
 
-int RunFourViewGenerate(const std::string& config_path) {
+int RunFourViewGenerate(const std::string& config_path, int jobs) {
+  (void)jobs;
   ConfigLoader config_loader(config_path);
   if (!config_loader.validateConfig()) {
     throw std::runtime_error("4v config validation failed: " + config_path);
