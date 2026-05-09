@@ -1,5 +1,7 @@
 #include "virtual_camera/four_view_runner.h"
 
+#include "virtual_camera/jobs.h"
+
 #include "bin_file_io.h"
 #include "camera_maps_generator.h"
 #include "camera_params_loader.h"
@@ -19,7 +21,8 @@ namespace {
 
 void GenerateCylinderMaps(const ConfigLoader::CylinderConfig& cylinder_config,
                           const std::vector<CameraModelExt>& cam_model_ext,
-                          const std::vector<CameraModelInt>& cam_model_int_src) {
+                          const std::vector<CameraModelInt>& cam_model_int_src,
+                          int jobs) {
   if (!cylinder_config.enabled) {
     return;
   }
@@ -41,7 +44,8 @@ void GenerateCylinderMaps(const ConfigLoader::CylinderConfig& cylinder_config,
       {3, 3, "rear"},
   };
 
-  for (const auto& cam : cam_infos) {
+  vc::ParallelFor(4, jobs, [&](std::size_t cam_index) {
+    const auto& cam = cam_infos[cam_index];
     double k_array[3][3] = {};
     const auto& intrin = cam_model_int_src.at(cam.loader_idx).intrin;
     for (int row = 0; row < 3; ++row) {
@@ -82,13 +86,12 @@ void GenerateCylinderMaps(const ConfigLoader::CylinderConfig& cylinder_config,
     if (!fisheye_cylinder::saveCylinderMapBin(cyl_map_x, cyl_map_y, bin_path)) {
       throw std::runtime_error("failed to save cylinder map: " + bin_path);
     }
-  }
+  });
 }
 
 }  // namespace
 
 int RunFourViewGenerate(const std::string& config_path, int jobs) {
-  (void)jobs;
   ConfigLoader config_loader(config_path);
   if (!config_loader.validateConfig()) {
     throw std::runtime_error("4v config validation failed: " + config_path);
@@ -117,7 +120,7 @@ int RunFourViewGenerate(const std::string& config_path, int jobs) {
   const CameraMaps camera_maps = CameraMapsGenerator::generateCameraMapsOptimized(
       result_param, stitching_config, cam_model_ext, cam_model_int,
       input_config.image_params.image_width, input_config.image_params.image_height,
-      vehicle_width, vehicle_length, vehicle_overhang);
+      vehicle_width, vehicle_length, vehicle_overhang, jobs);
 
   if (output_config.output_format != "bin" && output_config.output_format != "both") {
     throw std::runtime_error("generate-4v supports bin output only in this project");
@@ -127,7 +130,8 @@ int RunFourViewGenerate(const std::string& config_path, int jobs) {
                              output_config.camera_maps_file);
   }
 
-  GenerateCylinderMaps(config_loader.getCylinderConfig(), cam_model_ext, cam_model_int_src);
+  GenerateCylinderMaps(config_loader.getCylinderConfig(), cam_model_ext,
+                       cam_model_int_src, jobs);
   std::cout << "4v generation passed\n";
   return 0;
 }

@@ -1,5 +1,6 @@
 #include "../include/camera_maps_generator.h"
 #include "../include/weight_calculator.h"
+#include "virtual_camera/jobs.h"
 #include <opencv2/opencv.hpp>
 #include <iostream>
 #include <cmath>
@@ -19,7 +20,8 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
     int image_height,
     double vehicle_width,
     double vehicle_length,
-    double vehicle_overhang
+    double vehicle_overhang,
+    int jobs
 ) {
     int result_height = result_param.result_image_height;
     int result_width = result_param.result_image_width;
@@ -41,7 +43,8 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
     };
     
     // 第一步：处理每个相机的坐标映射
-    for (const auto& config : camera_configs) {
+    vc::ParallelFor(camera_configs.size(), jobs, [&](std::size_t config_index) {
+        const auto& config = camera_configs[config_index];
         std::cout << "处理" << config.region_name << "相机区域坐标映射: "
                   << "行[" << config.row_start << ":" << config.row_end << "], "
                   << "列[" << config.col_start << ":" << config.col_end << "]" << std::endl;
@@ -50,7 +53,7 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
         int region_width = config.col_end - config.col_start;
         
         if (region_height <= 0 || region_width <= 0) {
-            continue;
+            return;
         }
         
         // 获取相机参数
@@ -87,7 +90,9 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
             cam_map = &camera_maps.right;
         }
         
-        if (!cam_map) continue;
+        if (!cam_map) {
+            return;
+        }
         
         // 处理区域内的每个像素
         for (int local_i = 0; local_i < region_height; ++local_i) {
@@ -151,7 +156,7 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
                 }
             }
         }
-    }
+    });
     
     // 第二步：计算前后视图权重
     cv::Mat weight_2_dim = cv::Mat::zeros(result_height, result_width, CV_32F);
@@ -194,10 +199,16 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
     }
     
     // 第三步：计算左右视图权重
+    std::vector<CameraRegion> side_weight_configs;
     for (const auto& config : camera_configs) {
         if (config.region_name != "left" && config.region_name != "right") {
             continue;
         }
+        side_weight_configs.push_back(config);
+    }
+
+    vc::ParallelFor(side_weight_configs.size(), jobs, [&](std::size_t config_index) {
+        const auto& config = side_weight_configs[config_index];
         
         std::cout << "处理" << config.region_name << "相机区域权重: "
                   << "行[" << config.row_start << ":" << config.row_end << "], "
@@ -224,7 +235,7 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
                 }
             }
         }
-    }
+    });
     
     // 第四步：权重归一化处理
     std::cout << "权重归一化处理..." << std::endl;
@@ -245,7 +256,8 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
     }
     
     // 归一化各相机权重
-    for (auto* cam_map : all_maps) {
+    vc::ParallelFor(all_maps.size(), jobs, [&](std::size_t map_index) {
+        auto* cam_map = all_maps[map_index];
         cv::Mat mask_2d;
         cam_map->mask.convertTo(mask_2d, CV_32F, 1.0 / 255.0);
         cv::Mat weight_2d = cam_map->weight.mul(mask_2d);
@@ -254,7 +266,7 @@ CameraMaps CameraMapsGenerator::generateCameraMapsOptimized(
         cv::divide(weight_2d, total_weight, normalized_weight, 1.0, CV_32F);
         
         cam_map->weight = normalized_weight;
-    }
+    });
     
     // 验证归一化效果
     cv::Mat total_normalized = cv::Mat::zeros(result_height, result_width, CV_32F);

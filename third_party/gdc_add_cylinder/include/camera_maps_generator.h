@@ -16,9 +16,9 @@ public:
         int image_height,
         double vehicle_width,
         double vehicle_length,
-        double vehicle_overhang
+        double vehicle_overhang,
+        int jobs
     );
 };
 
 #endif // CAMERA_MAPS_GENERATOR_H
-
