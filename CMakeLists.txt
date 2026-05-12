@@ -102,6 +102,11 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_parallel_executor.cpp)
     target_link_libraries(test_parallel_executor PRIVATE virtual_camera_core)
 endif()
 
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_pipeline_runner.cpp)
+    add_executable(test_pipeline_runner tests/test_pipeline_runner.cpp)
+    target_link_libraries(test_pipeline_runner PRIVATE virtual_camera_core)
+endif()
+
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_pipeline_config.cpp)
     add_executable(test_pipeline_config tests/test_pipeline_config.cpp)
     target_link_libraries(test_pipeline_config PRIVATE virtual_camera_core)
