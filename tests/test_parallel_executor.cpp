@@ -1,10 +1,10 @@
-#include "virtual_camera/jobs.h"
+#include "virtual_camera/pipeline_config.h"
+#include "virtual_camera/pipeline_runner.h"
 
 #include <atomic>
 #include <functional>
 #include <stdexcept>
 #include <string>
-#include <vector>
 
 namespace {
 
@@ -14,113 +14,67 @@ void Expect(bool condition, const std::string& message) {
   }
 }
 
-void TestRunJobsSequential() {
-  std::atomic<int> count{0};
-  std::vector<std::function<void()>> jobs;
-  for (int index = 0; index < 5; ++index) {
-    jobs.push_back([&count]() { ++count; });
-  }
-  vc::RunJobs(jobs, 1);
-  Expect(count.load() == 5, "sequential jobs");
+vc::PipelineConfig MakeConfig(int process_undistort, int process_virtual_camera,
+                              int task_parallelism) {
+  vc::PipelineConfig config;
+  config.process_undistort = process_undistort;
+  config.process_virtual_camera = process_virtual_camera;
+  config.task_parallelism = task_parallelism;
+  return config;
 }
 
-void TestRunJobsParallel() {
-  std::atomic<int> count{0};
-  std::vector<std::function<void()>> jobs;
-  for (int index = 0; index < 8; ++index) {
-    jobs.push_back([&count]() { ++count; });
-  }
-  vc::RunJobs(jobs, 3);
-  Expect(count.load() == 8, "parallel jobs");
+void TestRunTopLevelPipelinesRunsBothEnabledCallbacks() {
+  std::atomic<int> undistort_count{0};
+  std::atomic<int> virtual_camera_count{0};
+  const vc::PipelineConfig config = MakeConfig(1, 1, 2);
+
+  vc::RunTopLevelPipelines(
+      config,
+      [&undistort_count]() { ++undistort_count; },
+      [&virtual_camera_count]() { ++virtual_camera_count; });
+
+  Expect(undistort_count.load() == 1, "undistort callback should run");
+  Expect(virtual_camera_count.load() == 1,
+         "virtual camera callback should run");
 }
 
-void TestRunJobsPropagatesException() {
-  std::vector<std::function<void()>> jobs;
-  jobs.push_back([]() {});
-  jobs.push_back([]() { throw std::runtime_error("boom"); });
-  jobs.push_back([]() {});
+void TestRunTopLevelPipelinesSkipsDisabledCallback() {
+  std::atomic<int> undistort_count{0};
+  std::atomic<int> virtual_camera_count{0};
+  const vc::PipelineConfig config = MakeConfig(0, 1, 2);
+
+  vc::RunTopLevelPipelines(
+      config,
+      [&undistort_count]() { ++undistort_count; },
+      [&virtual_camera_count]() { ++virtual_camera_count; });
+
+  Expect(undistort_count.load() == 0, "disabled callback should not run");
+  Expect(virtual_camera_count.load() == 1,
+         "enabled callback should run once");
+}
+
+void TestRunTopLevelPipelinesWrapsPipelineFailure() {
+  const vc::PipelineConfig config = MakeConfig(1, 0, 2);
 
   bool thrown = false;
   try {
-    vc::RunJobs(jobs, 2);
-  } catch (const std::runtime_error& error) {
-    thrown = std::string(error.what()).find("boom") != std::string::npos;
-  }
-  Expect(thrown, "RunJobs should propagate exception");
-}
-
-void TestRunJobsSequentialPropagatesAfterAllJobs() {
-  std::atomic<int> count{0};
-  std::vector<std::function<void()>> jobs;
-  jobs.push_back([&count]() { ++count; });
-  jobs.push_back([&count]() { ++count; throw std::runtime_error("boom"); });
-  jobs.push_back([&count]() { ++count; });
-
-  bool thrown = false;
-  try {
-    vc::RunJobs(jobs, 1);
-  } catch (const std::runtime_error& error) {
-    thrown = std::string(error.what()).find("parallel task failed") !=
-                 std::string::npos &&
-             std::string(error.what()).find("boom") != std::string::npos;
-  }
-  Expect(thrown, "RunJobs sequential exception should be wrapped");
-  Expect(count.load() == 3, "RunJobs sequential should finish all jobs");
-}
-
-void TestRunJobsEmptyNoOp() {
-  std::vector<std::function<void()>> jobs;
-  vc::RunJobs(jobs, 4);
-}
-
-void TestRunJobsZeroBehavesLikeSerial() {
-  std::atomic<int> count{0};
-  std::vector<std::function<void()>> jobs;
-  jobs.push_back([&count]() { ++count; });
-  jobs.push_back([&count]() { ++count; throw std::runtime_error("boom"); });
-  jobs.push_back([&count]() { ++count; });
-
-  bool thrown = false;
-  try {
-    vc::RunJobs(jobs, 0);
+    vc::RunTopLevelPipelines(
+        config,
+        []() { throw std::runtime_error("boom"); },
+        []() {});
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
-    thrown = message.find("parallel task failed") != std::string::npos &&
+    thrown = message.find("undistort pipeline") != std::string::npos &&
              message.find("boom") != std::string::npos;
   }
-  Expect(thrown, "RunJobs zero should wrap exception");
-  Expect(count.load() == 3, "RunJobs zero should finish all jobs");
-}
-
-void TestRunJobsOversubscribedStillRunsEachJobOnce() {
-  std::atomic<int> count{0};
-  std::vector<std::function<void()>> jobs;
-  for (int index = 0; index < 3; ++index) {
-    jobs.push_back([&count]() { ++count; });
-  }
-  vc::RunJobs(jobs, 8);
-  Expect(count.load() == 3, "RunJobs oversubscribed should run each job once");
-}
-
-void TestRunJobsSupportsTopLevelPipelines() {
-  std::atomic<int> count{0};
-  std::vector<std::function<void()>> jobs;
-  jobs.push_back([&count]() { ++count; });
-  jobs.push_back([&count]() { ++count; });
-  vc::RunJobs(jobs, 2);
-  Expect(count.load() == 2, "top level pipeline jobs");
+  Expect(thrown, "pipeline failure should include pipeline label");
 }
 
 }  // namespace
 
 int main() {
-  TestRunJobsSequential();
-  TestRunJobsParallel();
-  TestRunJobsPropagatesException();
-  TestRunJobsSequentialPropagatesAfterAllJobs();
-  TestRunJobsEmptyNoOp();
-  TestRunJobsZeroBehavesLikeSerial();
-  TestRunJobsOversubscribedStillRunsEachJobOnce();
-  TestRunJobsSupportsTopLevelPipelines();
+  TestRunTopLevelPipelinesRunsBothEnabledCallbacks();
+  TestRunTopLevelPipelinesSkipsDisabledCallback();
+  TestRunTopLevelPipelinesWrapsPipelineFailure();
   return 0;
 }
