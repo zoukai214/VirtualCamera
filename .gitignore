@@ -1,9 +1,9 @@
 build/
 output_verify/
+.worktrees/
 compile_commands.json
 *.o
 *.a
 *.so
 *.bin
 *.checkcode
-
