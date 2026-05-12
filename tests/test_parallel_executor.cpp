@@ -73,6 +73,35 @@ void TestRunJobsEmptyNoOp() {
   vc::RunJobs(jobs, 4);
 }
 
+void TestRunJobsZeroBehavesLikeSerial() {
+  std::atomic<int> count{0};
+  std::vector<std::function<void()>> jobs;
+  jobs.push_back([&count]() { ++count; });
+  jobs.push_back([&count]() { ++count; throw std::runtime_error("boom"); });
+  jobs.push_back([&count]() { ++count; });
+
+  bool thrown = false;
+  try {
+    vc::RunJobs(jobs, 0);
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    thrown = message.find("parallel task failed") != std::string::npos &&
+             message.find("boom") != std::string::npos;
+  }
+  Expect(thrown, "RunJobs zero should wrap exception");
+  Expect(count.load() == 3, "RunJobs zero should finish all jobs");
+}
+
+void TestRunJobsOversubscribedStillRunsEachJobOnce() {
+  std::atomic<int> count{0};
+  std::vector<std::function<void()>> jobs;
+  for (int index = 0; index < 3; ++index) {
+    jobs.push_back([&count]() { ++count; });
+  }
+  vc::RunJobs(jobs, 8);
+  Expect(count.load() == 3, "RunJobs oversubscribed should run each job once");
+}
+
 }  // namespace
 
 int main() {
@@ -81,5 +110,7 @@ int main() {
   TestRunJobsPropagatesException();
   TestRunJobsSequentialPropagatesAfterAllJobs();
   TestRunJobsEmptyNoOp();
+  TestRunJobsZeroBehavesLikeSerial();
+  TestRunJobsOversubscribedStillRunsEachJobOnce();
   return 0;
 }

@@ -66,6 +66,29 @@ inline int ResolveJobs(const JobsConfig& config, unsigned int hardware_jobs) {
 
 namespace detail {
 
+class ThreadJoiner {
+ public:
+  explicit ThreadJoiner(std::vector<std::thread>* workers)
+      : workers_(workers) {}
+
+  ~ThreadJoiner() {
+    if (workers_ == nullptr) {
+      return;
+    }
+    for (auto& worker : *workers_) {
+      if (worker.joinable()) {
+        worker.join();
+      }
+    }
+  }
+
+  ThreadJoiner(const ThreadJoiner&) = delete;
+  ThreadJoiner& operator=(const ThreadJoiner&) = delete;
+
+ private:
+  std::vector<std::thread>* workers_;
+};
+
 template <typename Execute>
 inline void RunIndexedTasks(std::size_t task_count, int max_jobs,
                             const Execute& execute) {
@@ -77,8 +100,9 @@ inline void RunIndexedTasks(std::size_t task_count, int max_jobs,
       std::min<std::size_t>(task_count,
                             static_cast<std::size_t>(std::max(1, max_jobs)));
   std::atomic<std::size_t> next{0};
-  std::mutex error_mutex;
-  std::vector<std::string> errors;
+  std::string first_error;
+  std::atomic<std::size_t> failure_count{0};
+  std::atomic<bool> first_error_recorded{false};
   std::vector<std::thread> workers;
   workers.reserve(worker_count);
 
@@ -86,11 +110,15 @@ inline void RunIndexedTasks(std::size_t task_count, int max_jobs,
     try {
       execute(index);
     } catch (const std::exception& ex) {
-      std::lock_guard<std::mutex> lock(error_mutex);
-      errors.push_back(ex.what());
+      if (!first_error_recorded.exchange(true)) {
+        first_error = ex.what();
+      }
+      ++failure_count;
     } catch (...) {
-      std::lock_guard<std::mutex> lock(error_mutex);
-      errors.push_back("unknown exception");
+      if (!first_error_recorded.exchange(true)) {
+        first_error = "unknown exception";
+      }
+      ++failure_count;
     }
   };
 
@@ -99,26 +127,25 @@ inline void RunIndexedTasks(std::size_t task_count, int max_jobs,
       run_one(index);
     }
   } else {
-    for (std::size_t worker_index = 0; worker_index < worker_count;
-         ++worker_index) {
-      workers.emplace_back([&]() {
-        while (true) {
-          const std::size_t index = next.fetch_add(1);
-          if (index >= task_count) {
-            break;
+    {
+      ThreadJoiner joiner(&workers);
+      for (std::size_t worker_index = 0; worker_index < worker_count;
+           ++worker_index) {
+        workers.emplace_back([&]() {
+          while (true) {
+            const std::size_t index = next.fetch_add(1);
+            if (index >= task_count) {
+              break;
+            }
+            run_one(index);
           }
-          run_one(index);
-        }
-      });
-    }
-
-    for (auto& worker : workers) {
-      worker.join();
+        });
+      }
     }
   }
 
-  if (!errors.empty()) {
-    throw std::runtime_error("parallel task failed: " + errors.front());
+  if (failure_count.load() > 0) {
+    throw std::runtime_error("parallel task failed: " + first_error);
   }
 }
 
