@@ -1,5 +1,6 @@
 #include "virtual_camera/jobs.h"
 
+#include <array>
 #include <atomic>
 #include <functional>
 #include <stdexcept>
@@ -103,13 +104,16 @@ void TestRunJobsOversubscribedStillRunsEachJobOnce() {
 }
 
 void TestRunJobsHandlesManyImageTasks() {
-  std::atomic<int> count{0};
+  std::array<std::atomic<int>, 16> hits{};
   std::vector<std::function<void()>> jobs;
   for (int index = 0; index < 16; ++index) {
-    jobs.push_back([&count]() { ++count; });
+    jobs.push_back([index, &hits]() { hits[index].fetch_add(1, std::memory_order_relaxed); });
   }
   vc::RunJobs(jobs, 4);
-  Expect(count.load() == 16, "image jobs");
+  for (int index = 0; index < 16; ++index) {
+    Expect(hits[index].load(std::memory_order_relaxed) == 1,
+           "image jobs unique execution");
+  }
 }
 
 }  // namespace
