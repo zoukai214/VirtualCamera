@@ -16,7 +16,7 @@ void WriteFile(const std::string& path, const std::string& data) {
 }  // namespace
 
 int main() {
-  const std::filesystem::path root = "build/test_verifier";
+  const std::filesystem::path root = "build/test_verifier_tmp";
   std::filesystem::remove_all(root);
 
   WriteFile((root / "golden/calib/gdc/a.bin").string(), "abc");
