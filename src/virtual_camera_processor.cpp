@@ -1,6 +1,7 @@
 #include "virtual_camera/virtual_camera_processor.h"
 
 #include "virtual_camera/calibration_loader.h"
+#include "virtual_camera/jobs.h"
 #include "virtual_camera/json_utils.h"
 #include "virtual_camera/json_writer.h"
 #include "virtual_camera/map_generator.h"
@@ -9,9 +10,11 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <functional>
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace vc {
@@ -65,6 +68,10 @@ void SaveFloatMap(const std::filesystem::path& path, const cv::Mat& map) {
                static_cast<std::streamsize>(contiguous.total() * sizeof(float)));
 }
 
+std::string NormalizedDestination(const std::filesystem::path& path) {
+  return path.lexically_normal().string();
+}
+
 CalibrationParam LoadVirtualSourceCalibration(const PipelineConfig& config,
                                              const VirtualCameraTaskConfig& task) {
   const std::filesystem::path calib_dir =
@@ -104,71 +111,139 @@ VirtualParam BuildVirtualParam(const VirtualCameraTaskConfig& task,
   return param;
 }
 
+void RunVirtualCameraTask(const PipelineConfig& config,
+                          const VirtualCameraTaskConfig& task) {
+  CalibrationParam calibration = LoadVirtualSourceCalibration(config, task);
+
+  double k_array[3][3];
+  double d_array[8];
+  double rt_array[4][4];
+  FillCameraMatrix(calibration.intrinsic_matrix, k_array);
+  FillDistortion(calibration.dist_data, d_array);
+  FillExtrinsic(calibration.extrinsic_matrix, rt_array);
+
+  cv::Mat map_x;
+  cv::Mat map_y;
+  cv::Mat src_map_x;
+  cv::Mat src_map_y;
+  if (config.distort_model == 1) {
+    gen_vc_map_kb(k_array, d_array, rt_array, task.new_intrinsic.image_width,
+                  task.new_intrinsic.image_height, task.new_intrinsic.fov,
+                  task.new_extrinsics.yaw, map_x, map_y, config.showinfo, 1,
+                  task.image_width, task.image_height, src_map_x, src_map_y);
+  } else {
+    gen_vc_map(k_array, d_array, rt_array, task.new_intrinsic.image_width,
+               task.new_intrinsic.image_height, task.new_intrinsic.fov,
+               task.new_extrinsics.yaw, map_x, map_y, config.showinfo, 1,
+               task.image_width, task.image_height, src_map_x, src_map_y);
+  }
+
+  const std::filesystem::path map_root =
+      std::filesystem::path(config.output_root) / config.paths.vc_gdcbin_dir_path;
+  SaveFloatMap(map_root / task.vc_mapx_name, map_x);
+  SaveFloatMap(map_root / task.vc_mapy_name, map_y);
+  SaveFloatMap(map_root / task.src2vc_mapx_name, src_map_x);
+  SaveFloatMap(map_root / task.src2vc_mapy_name, src_map_y);
+
+  VirtualParam virtual_param = BuildVirtualParam(task, calibration);
+  MapGenerator generator(calibration, virtual_param);
+  const std::filesystem::path json_output =
+      std::filesystem::path(config.output_root) / config.paths.vc_conf_dir_path /
+      task.calib_json;
+  WriteRt024VirtualJson(json_output.string(), generator.virtual_intrinsic(),
+                        generator.virtual_extrinsic(), std::vector<double>(8, 0.0));
+
+  const std::filesystem::path input_dir =
+      std::filesystem::path(config.dataset_root) / config.paths.image_dir_path / task.image_dir;
+  const std::filesystem::path output_dir =
+      std::filesystem::path(config.output_root) / config.paths.vc_image_dir_path /
+      task.save_dir;
+  EnsureDirectory(output_dir.string());
+  for (const auto& path : ListFiles(input_dir)) {
+    const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
+    if (image.empty()) {
+      throw std::runtime_error("failed to read image: " + path.string());
+    }
+    cv::Mat remapped;
+    cv::remap(image, remapped, map_x, map_y, cv::INTER_LINEAR);
+    const std::string output_name =
+        task.file_prefix + "_" + path.filename().string();
+    if (!cv::imwrite((output_dir / output_name).string(), remapped)) {
+      throw std::runtime_error("failed to write image: " +
+                               (output_dir / output_name).string());
+    }
+  }
+}
+
+void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
+  std::unordered_set<std::string> map_outputs;
+  std::unordered_set<std::string> json_outputs;
+  std::unordered_set<std::string> image_outputs;
+
+  for (const auto& task : config.virtual_tasks) {
+    const std::filesystem::path map_root =
+        std::filesystem::path(config.output_root) / config.paths.vc_gdcbin_dir_path;
+    const std::string vc_mapx_output = NormalizedDestination(map_root / task.vc_mapx_name);
+    if (!map_outputs.insert(vc_mapx_output).second) {
+      throw std::runtime_error("duplicate virtual camera output map path: " +
+                               vc_mapx_output);
+    }
+    const std::string vc_mapy_output = NormalizedDestination(map_root / task.vc_mapy_name);
+    if (!map_outputs.insert(vc_mapy_output).second) {
+      throw std::runtime_error("duplicate virtual camera output map path: " +
+                               vc_mapy_output);
+    }
+    const std::string src2vc_mapx_output =
+        NormalizedDestination(map_root / task.src2vc_mapx_name);
+    if (!map_outputs.insert(src2vc_mapx_output).second) {
+      throw std::runtime_error("duplicate virtual camera output map path: " +
+                               src2vc_mapx_output);
+    }
+    const std::string src2vc_mapy_output =
+        NormalizedDestination(map_root / task.src2vc_mapy_name);
+    if (!map_outputs.insert(src2vc_mapy_output).second) {
+      throw std::runtime_error("duplicate virtual camera output map path: " +
+                               src2vc_mapy_output);
+    }
+
+    const std::filesystem::path json_output =
+        std::filesystem::path(config.output_root) / config.paths.vc_conf_dir_path /
+        task.calib_json;
+    const std::string normalized_json_output = NormalizedDestination(json_output);
+    if (!json_outputs.insert(normalized_json_output).second) {
+      throw std::runtime_error("duplicate virtual camera output json path: " +
+                               normalized_json_output);
+    }
+
+    const std::filesystem::path image_output =
+        std::filesystem::path(config.output_root) / config.paths.vc_image_dir_path /
+        task.save_dir;
+    const std::string normalized_image_output = NormalizedDestination(image_output);
+    if (!image_outputs.insert(normalized_image_output).second) {
+      throw std::runtime_error("duplicate virtual camera output image path: " +
+                               normalized_image_output);
+    }
+  }
+}
+
 }  // namespace
 
 void RunVirtualCameraPipeline(const PipelineConfig& config) {
-  for (const auto& task : config.virtual_tasks) {
-    CalibrationParam calibration = LoadVirtualSourceCalibration(config, task);
-
-    double k_array[3][3];
-    double d_array[8];
-    double rt_array[4][4];
-    FillCameraMatrix(calibration.intrinsic_matrix, k_array);
-    FillDistortion(calibration.dist_data, d_array);
-    FillExtrinsic(calibration.extrinsic_matrix, rt_array);
-
-    cv::Mat map_x;
-    cv::Mat map_y;
-    cv::Mat src_map_x;
-    cv::Mat src_map_y;
-    if (config.distort_model == 1) {
-      gen_vc_map_kb(k_array, d_array, rt_array, task.new_intrinsic.image_width,
-                    task.new_intrinsic.image_height, task.new_intrinsic.fov,
-                    task.new_extrinsics.yaw, map_x, map_y, config.showinfo, 1,
-                    task.image_width, task.image_height, src_map_x, src_map_y);
-    } else {
-      gen_vc_map(k_array, d_array, rt_array, task.new_intrinsic.image_width,
-                 task.new_intrinsic.image_height, task.new_intrinsic.fov,
-                 task.new_extrinsics.yaw, map_x, map_y, config.showinfo, 1,
-                 task.image_width, task.image_height, src_map_x, src_map_y);
+  if (config.virtual_camera_parallelism <= 1) {
+    for (const auto& task : config.virtual_tasks) {
+      RunVirtualCameraTask(config, task);
     }
-
-    const std::filesystem::path map_root =
-        std::filesystem::path(config.output_root) / config.paths.vc_gdcbin_dir_path;
-    SaveFloatMap(map_root / task.vc_mapx_name, map_x);
-    SaveFloatMap(map_root / task.vc_mapy_name, map_y);
-    SaveFloatMap(map_root / task.src2vc_mapx_name, src_map_x);
-    SaveFloatMap(map_root / task.src2vc_mapy_name, src_map_y);
-
-    VirtualParam virtual_param = BuildVirtualParam(task, calibration);
-    MapGenerator generator(calibration, virtual_param);
-    const std::filesystem::path json_output =
-        std::filesystem::path(config.output_root) /
-        config.paths.vc_conf_dir_path / task.calib_json;
-    WriteRt024VirtualJson(json_output.string(), generator.virtual_intrinsic(),
-                          generator.virtual_extrinsic(), std::vector<double>(8, 0.0));
-
-    const std::filesystem::path input_dir =
-        std::filesystem::path(config.dataset_root) / config.paths.image_dir_path / task.image_dir;
-    const std::filesystem::path output_dir =
-        std::filesystem::path(config.output_root) /
-        config.paths.vc_image_dir_path / task.save_dir;
-    EnsureDirectory(output_dir.string());
-    for (const auto& path : ListFiles(input_dir)) {
-      const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
-      if (image.empty()) {
-        throw std::runtime_error("failed to read image: " + path.string());
-      }
-      cv::Mat remapped;
-      cv::remap(image, remapped, map_x, map_y, cv::INTER_LINEAR);
-      const std::string output_name =
-          task.file_prefix + "_" + path.filename().string();
-      if (!cv::imwrite((output_dir / output_name).string(), remapped)) {
-        throw std::runtime_error("failed to write image: " +
-                                 (output_dir / output_name).string());
-      }
-    }
+    return;
   }
+
+  ValidateVirtualCameraOutputs(config);
+
+  std::vector<std::function<void()>> jobs;
+  jobs.reserve(config.virtual_tasks.size());
+  for (const auto& task : config.virtual_tasks) {
+    jobs.push_back([&config, task]() { RunVirtualCameraTask(config, task); });
+  }
+  RunJobs(jobs, config.virtual_camera_parallelism);
 }
 
 }  // namespace vc

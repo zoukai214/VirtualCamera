@@ -50,6 +50,22 @@ void TestRunJobsPropagatesException() {
   Expect(thrown, "RunJobs should propagate exception");
 }
 
+void TestRunJobsReportsFirstFailure() {
+  std::vector<std::function<void()>> jobs;
+  jobs.push_back([]() { throw std::runtime_error("first"); });
+  jobs.push_back([]() { throw std::runtime_error("second"); });
+
+  bool thrown = false;
+  try {
+    vc::RunJobs(jobs, 2);
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    thrown = message.find("parallel task failed") != std::string::npos &&
+             message.find("first") != std::string::npos;
+  }
+  Expect(thrown, "RunJobs should report first failure");
+}
+
 void TestRunJobsSequentialPropagatesAfterAllJobs() {
   std::atomic<int> count{0};
   std::vector<std::function<void()>> jobs;
@@ -122,6 +138,7 @@ int main() {
   TestRunJobsSequential();
   TestRunJobsParallel();
   TestRunJobsPropagatesException();
+  TestRunJobsReportsFirstFailure();
   TestRunJobsSequentialPropagatesAfterAllJobs();
   TestRunJobsEmptyNoOp();
   TestRunJobsZeroBehavesLikeSerial();
