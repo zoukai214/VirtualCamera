@@ -27,12 +27,21 @@ inline std::function<void()> MakeContextualPipelineJob(std::string label,
   };
 }
 
+struct DefaultPipelineScheduler {
+  void operator()(const std::vector<std::function<void()>>& jobs,
+                  int max_jobs) const {
+    RunJobs(jobs, max_jobs);
+  }
+};
+
 }  // namespace detail
 
-template <typename UndistortCallback, typename VirtualCameraCallback>
+template <typename UndistortCallback, typename VirtualCameraCallback,
+          typename Scheduler = detail::DefaultPipelineScheduler>
 inline void RunTopLevelPipelines(const PipelineConfig& config,
                                  UndistortCallback undistort_callback,
-                                 VirtualCameraCallback virtual_camera_callback) {
+                                 VirtualCameraCallback virtual_camera_callback,
+                                 Scheduler scheduler = Scheduler{}) {
   std::vector<std::function<void()>> pipeline_jobs;
   if (config.process_undistort != 0) {
     pipeline_jobs.push_back(detail::MakeContextualPipelineJob(
@@ -43,7 +52,7 @@ inline void RunTopLevelPipelines(const PipelineConfig& config,
         "virtual_camera pipeline", std::move(virtual_camera_callback)));
   }
 
-  RunJobs(pipeline_jobs, config.task_parallelism);
+  scheduler(pipeline_jobs, config.task_parallelism);
 }
 
 }  // namespace vc
