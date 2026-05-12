@@ -68,6 +68,11 @@ void TestRunJobsSequentialPropagatesAfterAllJobs() {
   Expect(count.load() == 3, "RunJobs sequential should finish all jobs");
 }
 
+void TestRunJobsEmptyNoOp() {
+  std::vector<std::function<void()>> jobs;
+  vc::RunJobs(jobs, 4);
+}
+
 }  // namespace
 
 int main() {
@@ -75,5 +80,6 @@ int main() {
   TestRunJobsParallel();
   TestRunJobsPropagatesException();
   TestRunJobsSequentialPropagatesAfterAllJobs();
+  TestRunJobsEmptyNoOp();
   return 0;
 }

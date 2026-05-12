@@ -140,6 +140,12 @@ bool TestParallelForSequentialPropagatesAfterAllItems() {
   return false;
 }
 
+bool TestParallelForZeroNoOp() {
+  std::atomic<int> count{0};
+  vc::ParallelFor(0, 4, [&](std::size_t) { ++count; });
+  return ExpectEqual(count.load(), 0, "parallel zero count");
+}
+
 }  // namespace
 
 int main() {
@@ -148,5 +154,6 @@ int main() {
   if (!TestParallelForRunsAllItems()) return 1;
   if (!TestParallelForPropagatesException()) return 1;
   if (!TestParallelForSequentialPropagatesAfterAllItems()) return 1;
+  if (!TestParallelForZeroNoOp()) return 1;
   return 0;
 }

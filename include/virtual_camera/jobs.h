@@ -64,6 +64,8 @@ inline int ResolveJobs(const JobsConfig& config, unsigned int hardware_jobs) {
   return hardware_jobs > 0 ? static_cast<int>(hardware_jobs) : 1;
 }
 
+namespace detail {
+
 template <typename Execute>
 inline void RunIndexedTasks(std::size_t task_count, int max_jobs,
                             const Execute& execute) {
@@ -120,16 +122,18 @@ inline void RunIndexedTasks(std::size_t task_count, int max_jobs,
   }
 }
 
+}  // namespace detail
+
 inline void RunJobs(const std::vector<std::function<void()>>& jobs,
                     int max_jobs) {
-  RunIndexedTasks(jobs.size(), max_jobs, [&](std::size_t index) {
+  detail::RunIndexedTasks(jobs.size(), max_jobs, [&](std::size_t index) {
     jobs[index]();
   });
 }
 
 template <typename Fn>
 void ParallelFor(std::size_t count, int jobs, Fn fn) {
-  RunIndexedTasks(count, jobs, [&](std::size_t index) { fn(index); });
+  detail::RunIndexedTasks(count, jobs, [&](std::size_t index) { fn(index); });
 }
 
 }  // namespace vc
