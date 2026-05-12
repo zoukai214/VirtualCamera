@@ -102,6 +102,16 @@ void TestRunJobsOversubscribedStillRunsEachJobOnce() {
   Expect(count.load() == 3, "RunJobs oversubscribed should run each job once");
 }
 
+void TestRunJobsHandlesManyImageTasks() {
+  std::atomic<int> count{0};
+  std::vector<std::function<void()>> jobs;
+  for (int index = 0; index < 16; ++index) {
+    jobs.push_back([&count]() { ++count; });
+  }
+  vc::RunJobs(jobs, 4);
+  Expect(count.load() == 16, "image jobs");
+}
+
 }  // namespace
 
 int main() {
@@ -112,5 +122,6 @@ int main() {
   TestRunJobsEmptyNoOp();
   TestRunJobsZeroBehavesLikeSerial();
   TestRunJobsOversubscribedStillRunsEachJobOnce();
+  TestRunJobsHandlesManyImageTasks();
   return 0;
 }
