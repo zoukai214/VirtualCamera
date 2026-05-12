@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <functional>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -63,14 +64,22 @@ inline int ResolveJobs(const JobsConfig& config, unsigned int hardware_jobs) {
   return hardware_jobs > 0 ? static_cast<int>(hardware_jobs) : 1;
 }
 
-template <typename Fn>
-void ParallelFor(std::size_t count, int jobs, Fn fn) {
-  if (count == 0) {
+inline void RunJobs(const std::vector<std::function<void()>>& jobs,
+                    int max_jobs) {
+  if (jobs.empty()) {
+    return;
+  }
+
+  if (max_jobs <= 1) {
+    for (const auto& job : jobs) {
+      job();
+    }
     return;
   }
 
   const std::size_t worker_count =
-      std::min<std::size_t>(count, static_cast<std::size_t>(std::max(1, jobs)));
+      std::min<std::size_t>(jobs.size(),
+                            static_cast<std::size_t>(std::max(1, max_jobs)));
   std::atomic<std::size_t> next{0};
   std::mutex error_mutex;
   std::vector<std::string> errors;
@@ -82,11 +91,11 @@ void ParallelFor(std::size_t count, int jobs, Fn fn) {
     workers.emplace_back([&]() {
       while (true) {
         const std::size_t index = next.fetch_add(1);
-        if (index >= count) {
+        if (index >= jobs.size()) {
           break;
         }
         try {
-          fn(index);
+          jobs[index]();
         } catch (const std::exception& ex) {
           std::lock_guard<std::mutex> lock(error_mutex);
           errors.push_back(ex.what());
@@ -105,6 +114,16 @@ void ParallelFor(std::size_t count, int jobs, Fn fn) {
   if (!errors.empty()) {
     throw std::runtime_error("parallel task failed: " + errors.front());
   }
+}
+
+template <typename Fn>
+void ParallelFor(std::size_t count, int jobs, Fn fn) {
+  std::vector<std::function<void()>> work_items;
+  work_items.reserve(count);
+  for (std::size_t index = 0; index < count; ++index) {
+    work_items.push_back([index, &fn]() { fn(index); });
+  }
+  RunJobs(work_items, jobs);
 }
 
 }  // namespace vc
