@@ -23,6 +23,7 @@ set(VIRTUAL_CAMERA_CORE_SOURCES)
 foreach(source_file
     src/json_utils.cpp
     src/pipeline_config.cpp
+    src/calibration_loader.cpp
     src/task_builder.cpp
     src/map_generator.cpp
     src/json_writer.cpp
@@ -92,4 +93,9 @@ endif()
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_pipeline_config.cpp)
     add_executable(test_pipeline_config tests/test_pipeline_config.cpp)
     target_link_libraries(test_pipeline_config PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_calibration_loader.cpp)
+    add_executable(test_calibration_loader tests/test_calibration_loader.cpp)
+    target_link_libraries(test_calibration_loader PRIVATE virtual_camera_core)
 endif()
