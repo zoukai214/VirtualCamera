@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
 #include <functional>
 #include <stdexcept>
 #include <string>
@@ -106,11 +105,21 @@ void ValidateUndistortOutputs(const PipelineConfig& config) {
   std::unordered_set<std::string> conf_outputs;
   std::unordered_set<std::string> image_outputs;
   for (const auto& task : config.undistort_tasks) {
-    if (!conf_outputs.insert(task.conf_json).second) {
-      throw std::runtime_error("duplicate undistort output conf_json: " + task.conf_json);
+    const std::string conf_output = (std::filesystem::path(config.output_root) /
+                                     config.paths.undistort_conf_dir_path /
+                                     task.conf_json)
+                                        .lexically_normal()
+                                        .string();
+    if (!conf_outputs.insert(conf_output).second) {
+      throw std::runtime_error("duplicate undistort output json path: " + conf_output);
     }
-    if (!image_outputs.insert(task.image_dir).second) {
-      throw std::runtime_error("duplicate undistort output image_dir: " + task.image_dir);
+    const std::string image_output = (std::filesystem::path(config.output_root) /
+                                      config.paths.undistort_image_dir_path /
+                                      task.image_dir)
+                                         .lexically_normal()
+                                         .string();
+    if (!image_outputs.insert(image_output).second) {
+      throw std::runtime_error("duplicate undistort output image path: " + image_output);
     }
   }
 }
