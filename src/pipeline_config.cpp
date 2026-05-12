@@ -63,6 +63,9 @@ PipelineConfig LoadPipelineConfig(const std::string& config_path) {
   cfg.showdir = json.value("showdir", 0);
   cfg.process_virtual_camera = json.value("process_virtual_camera", 0);
   cfg.process_undistort = json.value("process_undistort", 0);
+  cfg.task_parallelism = json.value("task_parallelism", 1);
+  cfg.undistort_parallelism = json.value("undistort_parallelism", 1);
+  cfg.virtual_camera_parallelism = json.value("virtual_camera_parallelism", 1);
   cfg.undistort_image = json.value("undistort_image", 0);
   cfg.distort_model = json.value("distort_model", 0);
   cfg.save_virtual_json = json.value("save_virtual_json", 0);

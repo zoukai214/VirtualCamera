@@ -72,6 +72,9 @@ struct PipelineConfig {
   int showdir = 0;
   int process_virtual_camera = 0;
   int process_undistort = 0;
+  int task_parallelism = 1;
+  int undistort_parallelism = 1;
+  int virtual_camera_parallelism = 1;
   int undistort_image = 0;
   int distort_model = 0;
   int save_virtual_json = 0;

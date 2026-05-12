@@ -37,6 +37,9 @@ void TestLoadPipelineConfigSuccess() {
     "showdir": 0,
     "process_virtual_camera": 1,
     "process_undistort": 1,
+    "task_parallelism": 2,
+    "undistort_parallelism": 3,
+    "virtual_camera_parallelism": 4,
     "undistort_image": 0,
     "distort_model": 0,
     "save_virtual_json": 1,
@@ -101,6 +104,9 @@ void TestLoadPipelineConfigSuccess() {
   Expect(config.output_root == "build/rt024_output", "output_root");
   Expect(config.virtual_tasks.size() == 1, "virtual task count");
   Expect(config.undistort_tasks.size() == 1, "undistort task count");
+  Expect(config.task_parallelism == 2, "task_parallelism");
+  Expect(config.undistort_parallelism == 3, "undistort_parallelism");
+  Expect(config.virtual_camera_parallelism == 4, "virtual_camera_parallelism");
   Expect(config.virtual_tasks.front().save_dir == "front_wide_110/", "save_dir");
   Expect(config.virtual_tasks.front().calib_json == "calib_cam_front_wide_fov110.json",
          "calib_json");
@@ -129,10 +135,37 @@ void TestLoadPipelineConfigMissingField() {
   Expect(thrown, "missing field should mention conf_dir_path");
 }
 
+void TestLoadPipelineConfigParallelismDefaults() {
+  const std::string root = "build/test_tmp/pipeline_config_parallel_defaults";
+  std::filesystem::create_directories(root);
+  const std::string path = root + "/config.json";
+  WriteText(path, R"json({
+    "dataset_root": "/workspace/GACRT024_1754812994",
+    "golden_root": "/workspace/GACRT024_1754812994",
+    "output_root": "build/rt024_output",
+    "conf_dir_path": "calib_extract/",
+    "image_dir_path": "image_raw/",
+    "vc_image_dir_path": "image_virtual_camera/",
+    "undistort_image_dir_path": "image_undistortion/",
+    "vc_conf_dir_path": "calib_virtual_camera/",
+    "undistort_conf_dir_path": "calib_undistortion/",
+    "vc_gdcbin_dir_path": "vc_gdcbin_dir_path/",
+    "virtual_camera_configs": [],
+    "undistort_configs": []
+  })json");
+
+  const vc::PipelineConfig config = vc::LoadPipelineConfig(path);
+  Expect(config.task_parallelism == 1, "default task_parallelism");
+  Expect(config.undistort_parallelism == 1, "default undistort_parallelism");
+  Expect(config.virtual_camera_parallelism == 1,
+         "default virtual_camera_parallelism");
+}
+
 }  // namespace
 
 int main() {
   TestLoadPipelineConfigSuccess();
   TestLoadPipelineConfigMissingField();
+  TestLoadPipelineConfigParallelismDefaults();
   return 0;
 }
