@@ -102,6 +102,15 @@ void TestRunJobsOversubscribedStillRunsEachJobOnce() {
   Expect(count.load() == 3, "RunJobs oversubscribed should run each job once");
 }
 
+void TestRunJobsSupportsTopLevelPipelines() {
+  std::atomic<int> count{0};
+  std::vector<std::function<void()>> jobs;
+  jobs.push_back([&count]() { ++count; });
+  jobs.push_back([&count]() { ++count; });
+  vc::RunJobs(jobs, 2);
+  Expect(count.load() == 2, "top level pipeline jobs");
+}
+
 }  // namespace
 
 int main() {
@@ -112,5 +121,6 @@ int main() {
   TestRunJobsEmptyNoOp();
   TestRunJobsZeroBehavesLikeSerial();
   TestRunJobsOversubscribedStillRunsEachJobOnce();
+  TestRunJobsSupportsTopLevelPipelines();
   return 0;
 }
