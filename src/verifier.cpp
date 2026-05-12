@@ -114,6 +114,26 @@ void CompareBinDirectory(const std::filesystem::path& golden_root,
   }
 }
 
+void CompareJsonDirectory(const std::filesystem::path& golden_root,
+                          const std::filesystem::path& actual_root,
+                          const std::string& subdir,
+                          std::ostringstream* errors) {
+  const auto golden_files = ListRelativeFiles(golden_root / subdir, ".json");
+  const auto actual_files = ListRelativeFiles(actual_root / subdir, ".json");
+  if (golden_files != actual_files) {
+    *errors << "file set mismatch: " << subdir << "\n";
+    return;
+  }
+
+  for (const auto& rel : golden_files) {
+    const auto golden_json = ReadJson((golden_root / subdir / rel).string());
+    const auto actual_json = ReadJson((actual_root / subdir / rel).string());
+    if (golden_json != actual_json) {
+      *errors << "json mismatch: " << subdir << "/" << rel.string() << "\n";
+    }
+  }
+}
+
 }  // namespace
 
 VerifyResult VerifyOutputs(const std::string& golden_root, const std::string& actual_root) {
@@ -121,6 +141,20 @@ VerifyResult VerifyOutputs(const std::string& golden_root, const std::string& ac
   CompareBinDirectory(golden_root, actual_root, "calib/gdc", &errors);
   CompareBinDirectory(golden_root, actual_root, "calib/gdc_intri", &errors);
   CompareVirtualJson(golden_root, actual_root, &errors);
+
+  const std::string message = errors.str();
+  if (!message.empty()) {
+    return {false, message};
+  }
+  return {true, "verification passed"};
+}
+
+VerifyResult VerifyRt024Outputs(const std::string& golden_root,
+                                const std::string& actual_root) {
+  std::ostringstream errors;
+  CompareBinDirectory(golden_root, actual_root, "vc_gdcbin_dir_path", &errors);
+  CompareJsonDirectory(golden_root, actual_root, "calib_virtual_camera", &errors);
+  CompareJsonDirectory(golden_root, actual_root, "calib_undistortion", &errors);
 
   const std::string message = errors.str();
   if (!message.empty()) {

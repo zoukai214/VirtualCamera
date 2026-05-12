@@ -99,3 +99,13 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_calibration_loader.cpp)
     add_executable(test_calibration_loader tests/test_calibration_loader.cpp)
     target_link_libraries(test_calibration_loader PRIVATE virtual_camera_core)
 endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_rt024_json_writer.cpp)
+    add_executable(test_rt024_json_writer tests/test_rt024_json_writer.cpp)
+    target_link_libraries(test_rt024_json_writer PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_rt024_verifier.cpp)
+    add_executable(test_rt024_verifier tests/test_rt024_verifier.cpp)
+    target_link_libraries(test_rt024_verifier PRIVATE virtual_camera_core)
+endif()

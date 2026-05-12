@@ -10,5 +10,6 @@ struct VerifyResult {
 };
 
 VerifyResult VerifyOutputs(const std::string& golden_root, const std::string& actual_root);
+VerifyResult VerifyRt024Outputs(const std::string& golden_root, const std::string& actual_root);
 
 }  // namespace vc

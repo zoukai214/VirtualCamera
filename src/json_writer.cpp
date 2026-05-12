@@ -5,6 +5,33 @@
 #include <filesystem>
 
 namespace vc {
+namespace {
+
+nlohmann::json Matrix3dToJson(const Eigen::Matrix3d& matrix) {
+  nlohmann::json rows = nlohmann::json::array();
+  for (int row = 0; row < 3; ++row) {
+    nlohmann::json cols = nlohmann::json::array();
+    for (int col = 0; col < 3; ++col) {
+      cols.push_back(matrix(row, col));
+    }
+    rows.push_back(cols);
+  }
+  return rows;
+}
+
+nlohmann::json Matrix4dToJson(const Eigen::Matrix4d& matrix) {
+  nlohmann::json rows = nlohmann::json::array();
+  for (int row = 0; row < 4; ++row) {
+    nlohmann::json cols = nlohmann::json::array();
+    for (int col = 0; col < 4; ++col) {
+      cols.push_back(matrix(row, col));
+    }
+    rows.push_back(cols);
+  }
+  return rows;
+}
+
+}  // namespace
 
 void SaveVirtualJson(const std::string& input_root, const std::string& output_root,
                      const CameraTask& task, const Eigen::Matrix4d& virtual_extrinsic,
@@ -46,6 +73,36 @@ void SaveVirtualJson(const std::string& input_root, const std::string& output_ro
       std::filesystem::path(output_root) / "calib/virtual" / camera_name;
   WriteJson((output_dir / (camera_name + "-intrinsic.json")).string(), intri_json);
   WriteJson((output_dir / (camera_name + "-to-car_center-extrinsic.json")).string(), extri_json);
+}
+
+void WriteRt024UndistortJson(const std::string& output_path,
+                             const CalibrationParam& calibration,
+                             const NewIntrinsicConfig& new_intrinsic) {
+  Eigen::Matrix3d intrinsics = Eigen::Matrix3d::Identity();
+  intrinsics(0, 0) = new_intrinsic.focal_u;
+  intrinsics(0, 2) = new_intrinsic.center_u;
+  intrinsics(1, 1) = new_intrinsic.focal_v;
+  intrinsics(1, 2) = new_intrinsic.center_v;
+
+  const std::vector<double> zero_dist(calibration.dist_data.size(), 0.0);
+  nlohmann::json json = {
+      {"undistort_setting",
+       {{"intrinsics", Matrix3dToJson(intrinsics)},
+        {"extrinsics", Matrix4dToJson(calibration.extrinsic_matrix)},
+        {"distort", zero_dist}}}};
+  WriteJson(output_path, json);
+}
+
+void WriteRt024VirtualJson(const std::string& output_path,
+                           const Eigen::Matrix3d& virtual_intrinsic,
+                           const Eigen::Matrix4d& virtual_extrinsic,
+                           const std::vector<double>& dist_data) {
+  nlohmann::json json = {
+      {"virtual_camera_setting",
+       {{"intrinsics", Matrix3dToJson(virtual_intrinsic)},
+        {"extrinsics", Matrix4dToJson(virtual_extrinsic)},
+        {"distort", dist_data}}}};
+  WriteJson(output_path, json);
 }
 
 }  // namespace vc
