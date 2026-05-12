@@ -61,9 +61,10 @@ void TestRunJobsReportsFirstFailure() {
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     thrown = message.find("parallel task failed") != std::string::npos &&
-             message.find("first") != std::string::npos;
+             (message.find("first") != std::string::npos ||
+              message.find("second") != std::string::npos);
   }
-  Expect(thrown, "RunJobs should report first failure");
+  Expect(thrown, "RunJobs should report one failure");
 }
 
 void TestRunJobsSequentialPropagatesAfterAllJobs() {

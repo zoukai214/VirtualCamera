@@ -176,44 +176,28 @@ void RunVirtualCameraTask(const PipelineConfig& config,
 }
 
 void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
-  std::unordered_set<std::string> map_outputs;
-  std::unordered_set<std::string> json_outputs;
-  std::unordered_set<std::string> image_outputs;
+  std::unordered_set<std::string> outputs;
+
+  auto RegisterOutput = [&outputs](const std::filesystem::path& path) {
+    const std::string normalized_output = NormalizedDestination(path);
+    if (!outputs.insert(normalized_output).second) {
+      throw std::runtime_error("duplicate virtual camera output path: " +
+                               normalized_output);
+    }
+  };
 
   for (const auto& task : config.virtual_tasks) {
     const std::filesystem::path map_root =
         std::filesystem::path(config.output_root) / config.paths.vc_gdcbin_dir_path;
-    const std::string vc_mapx_output = NormalizedDestination(map_root / task.vc_mapx_name);
-    if (!map_outputs.insert(vc_mapx_output).second) {
-      throw std::runtime_error("duplicate virtual camera output map path: " +
-                               vc_mapx_output);
-    }
-    const std::string vc_mapy_output = NormalizedDestination(map_root / task.vc_mapy_name);
-    if (!map_outputs.insert(vc_mapy_output).second) {
-      throw std::runtime_error("duplicate virtual camera output map path: " +
-                               vc_mapy_output);
-    }
-    const std::string src2vc_mapx_output =
-        NormalizedDestination(map_root / task.src2vc_mapx_name);
-    if (!map_outputs.insert(src2vc_mapx_output).second) {
-      throw std::runtime_error("duplicate virtual camera output map path: " +
-                               src2vc_mapx_output);
-    }
-    const std::string src2vc_mapy_output =
-        NormalizedDestination(map_root / task.src2vc_mapy_name);
-    if (!map_outputs.insert(src2vc_mapy_output).second) {
-      throw std::runtime_error("duplicate virtual camera output map path: " +
-                               src2vc_mapy_output);
-    }
+    RegisterOutput(map_root / task.vc_mapx_name);
+    RegisterOutput(map_root / task.vc_mapy_name);
+    RegisterOutput(map_root / task.src2vc_mapx_name);
+    RegisterOutput(map_root / task.src2vc_mapy_name);
 
     const std::filesystem::path json_output =
         std::filesystem::path(config.output_root) / config.paths.vc_conf_dir_path /
         task.calib_json;
-    const std::string normalized_json_output = NormalizedDestination(json_output);
-    if (!json_outputs.insert(normalized_json_output).second) {
-      throw std::runtime_error("duplicate virtual camera output json path: " +
-                               normalized_json_output);
-    }
+    RegisterOutput(json_output);
 
     const std::filesystem::path input_dir =
         std::filesystem::path(config.dataset_root) / config.paths.image_dir_path /
@@ -222,13 +206,7 @@ void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
         std::filesystem::path(config.output_root) / config.paths.vc_image_dir_path /
         task.save_dir;
     for (const auto& input_path : ListFiles(input_dir)) {
-      const std::filesystem::path image_output =
-          image_root / (task.file_prefix + "_" + input_path.filename().string());
-      const std::string normalized_image_output = NormalizedDestination(image_output);
-      if (!image_outputs.insert(normalized_image_output).second) {
-        throw std::runtime_error("duplicate virtual camera output image path: " +
-                                 normalized_image_output);
-      }
+      RegisterOutput(image_root / (task.file_prefix + "_" + input_path.filename().string()));
     }
   }
 }

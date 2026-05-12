@@ -179,7 +179,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateJsonOutputs() {
     vc::RunVirtualCameraPipeline(config);
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
-    thrown = message.find("duplicate virtual camera output json path") !=
+    thrown = message.find("duplicate virtual camera output path") !=
              std::string::npos;
   }
   Expect(thrown, "parallel mode should reject duplicate json outputs");
@@ -207,7 +207,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs() {
     vc::RunVirtualCameraPipeline(config);
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
-    thrown = message.find("duplicate virtual camera output image path") !=
+    thrown = message.find("duplicate virtual camera output path") !=
              std::string::npos;
   }
   Expect(thrown, "parallel mode should reject duplicate image outputs");
@@ -255,6 +255,50 @@ void TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes() {
          "right prefix output should exist");
 }
 
+void TestRunVirtualCameraPipelineRejectsCrossTypeNormalizedAlias() {
+  const std::filesystem::path root = MakeTestRoot("parallel_cross_type_alias");
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.virtual_camera_parallelism = 2;
+
+  vc::VirtualCameraTaskConfig map_task = MakeValidTask();
+  map_task.save_dir = "map_alias/";
+  map_task.calib_json = "map_alias.json";
+  map_task.vc_mapx_name = "shared_alias.bin";
+  map_task.vc_mapy_name = "map_alias_vc_mapY.bin";
+  map_task.src2vc_mapx_name = "map_alias_src2vc_mapX.bin";
+  map_task.src2vc_mapy_name = "map_alias_src2vc_mapY.bin";
+  map_task.file_prefix = "mapalias";
+
+  vc::VirtualCameraTaskConfig json_task = MakeValidTask();
+  json_task.save_dir = "json_alias/";
+  json_task.calib_json = "../vc_gdcbin_dir_path/shared_alias.bin";
+  json_task.vc_mapx_name = "json_alias_vc_mapX.bin";
+  json_task.vc_mapy_name = "json_alias_vc_mapY.bin";
+  json_task.src2vc_mapx_name = "json_alias_src2vc_mapX.bin";
+  json_task.src2vc_mapy_name = "json_alias_src2vc_mapY.bin";
+  json_task.file_prefix = "jsonalias";
+
+  config.virtual_tasks.push_back(map_task);
+  config.virtual_tasks.push_back(json_task);
+
+  bool thrown = false;
+  try {
+    vc::RunVirtualCameraPipeline(config);
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    thrown = message.find("duplicate virtual camera output path") !=
+             std::string::npos &&
+             message.find("shared_alias.bin") != std::string::npos;
+  }
+  Expect(thrown, "parallel mode should reject cross-type aliases");
+  Expect(!std::filesystem::exists(root / "calib_virtual_camera"),
+         "cross-type alias validation should happen before work starts");
+  Expect(!std::filesystem::exists(root / "image_virtual_camera"),
+         "cross-type alias validation should not create image outputs");
+  Expect(!std::filesystem::exists(root / "vc_gdcbin_dir_path"),
+         "cross-type alias validation should not create map outputs");
+}
+
 void TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs() {
   const std::filesystem::path root = MakeTestRoot("parallel_map_collision");
   vc::PipelineConfig config = MakeBaseConfig(root);
@@ -271,7 +315,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs() {
     vc::RunVirtualCameraPipeline(config);
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
-    thrown = message.find("duplicate virtual camera output map path") !=
+    thrown = message.find("duplicate virtual camera output path") !=
              std::string::npos;
   }
   Expect(thrown, "parallel mode should reject duplicate map outputs");
@@ -290,6 +334,7 @@ int main() {
   TestRunVirtualCameraPipelineRejectsDuplicateJsonOutputs();
   TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs();
   TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes();
+  TestRunVirtualCameraPipelineRejectsCrossTypeNormalizedAlias();
   TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs();
   return 0;
 }
