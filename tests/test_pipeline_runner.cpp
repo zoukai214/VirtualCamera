@@ -122,6 +122,36 @@ void TestRunTopLevelPipelinesLabelsVirtualCameraFailure() {
   Expect(thrown, "virtual camera failure should include pipeline label");
 }
 
+void TestRunTopLevelPipelinesUsesDefaultSchedulerPath() {
+  const vc::PipelineConfig config = MakeConfig(1, 0, 1);
+
+  bool thrown = false;
+  try {
+    vc::RunTopLevelPipelines(config, []() { throw std::runtime_error("boom"); },
+                            []() {});
+  } catch (const std::runtime_error& error) {
+    const std::string message = error.what();
+    thrown = message.find("parallel task failed") != std::string::npos &&
+             message.find("undistort pipeline") != std::string::npos;
+  }
+  Expect(thrown, "default scheduler path should wrap labeled failure");
+}
+
+void TestRunTopLevelPipelinesBothDisabledNoOp() {
+  std::atomic<int> undistort_count{0};
+  std::atomic<int> virtual_camera_count{0};
+  const vc::PipelineConfig config = MakeConfig(0, 0, 4);
+
+  vc::RunTopLevelPipelines(
+      config,
+      [&undistort_count]() { ++undistort_count; },
+      [&virtual_camera_count]() { ++virtual_camera_count; });
+
+  Expect(undistort_count.load() == 0, "undistort callback should not run");
+  Expect(virtual_camera_count.load() == 0,
+         "virtual camera callback should not run");
+}
+
 }  // namespace
 
 int main() {
@@ -129,5 +159,7 @@ int main() {
   TestRunTopLevelPipelinesSkipsDisabledCallback();
   TestRunTopLevelPipelinesLabelsUndistortFailure();
   TestRunTopLevelPipelinesLabelsVirtualCameraFailure();
+  TestRunTopLevelPipelinesUsesDefaultSchedulerPath();
+  TestRunTopLevelPipelinesBothDisabledNoOp();
   return 0;
 }
