@@ -64,21 +64,15 @@ inline int ResolveJobs(const JobsConfig& config, unsigned int hardware_jobs) {
   return hardware_jobs > 0 ? static_cast<int>(hardware_jobs) : 1;
 }
 
-inline void RunJobs(const std::vector<std::function<void()>>& jobs,
-                    int max_jobs) {
-  if (jobs.empty()) {
-    return;
-  }
-
-  if (max_jobs <= 1) {
-    for (const auto& job : jobs) {
-      job();
-    }
+template <typename Execute>
+inline void RunIndexedTasks(std::size_t task_count, int max_jobs,
+                            const Execute& execute) {
+  if (task_count == 0) {
     return;
   }
 
   const std::size_t worker_count =
-      std::min<std::size_t>(jobs.size(),
+      std::min<std::size_t>(task_count,
                             static_cast<std::size_t>(std::max(1, max_jobs)));
   std::atomic<std::size_t> next{0};
   std::mutex error_mutex;
@@ -86,29 +80,39 @@ inline void RunJobs(const std::vector<std::function<void()>>& jobs,
   std::vector<std::thread> workers;
   workers.reserve(worker_count);
 
-  for (std::size_t worker_index = 0; worker_index < worker_count;
-       ++worker_index) {
-    workers.emplace_back([&]() {
-      while (true) {
-        const std::size_t index = next.fetch_add(1);
-        if (index >= jobs.size()) {
-          break;
-        }
-        try {
-          jobs[index]();
-        } catch (const std::exception& ex) {
-          std::lock_guard<std::mutex> lock(error_mutex);
-          errors.push_back(ex.what());
-        } catch (...) {
-          std::lock_guard<std::mutex> lock(error_mutex);
-          errors.push_back("unknown exception");
-        }
-      }
-    });
-  }
+  auto run_one = [&](std::size_t index) {
+    try {
+      execute(index);
+    } catch (const std::exception& ex) {
+      std::lock_guard<std::mutex> lock(error_mutex);
+      errors.push_back(ex.what());
+    } catch (...) {
+      std::lock_guard<std::mutex> lock(error_mutex);
+      errors.push_back("unknown exception");
+    }
+  };
 
-  for (auto& worker : workers) {
-    worker.join();
+  if (max_jobs <= 1) {
+    for (std::size_t index = 0; index < task_count; ++index) {
+      run_one(index);
+    }
+  } else {
+    for (std::size_t worker_index = 0; worker_index < worker_count;
+         ++worker_index) {
+      workers.emplace_back([&]() {
+        while (true) {
+          const std::size_t index = next.fetch_add(1);
+          if (index >= task_count) {
+            break;
+          }
+          run_one(index);
+        }
+      });
+    }
+
+    for (auto& worker : workers) {
+      worker.join();
+    }
   }
 
   if (!errors.empty()) {
@@ -116,14 +120,16 @@ inline void RunJobs(const std::vector<std::function<void()>>& jobs,
   }
 }
 
+inline void RunJobs(const std::vector<std::function<void()>>& jobs,
+                    int max_jobs) {
+  RunIndexedTasks(jobs.size(), max_jobs, [&](std::size_t index) {
+    jobs[index]();
+  });
+}
+
 template <typename Fn>
 void ParallelFor(std::size_t count, int jobs, Fn fn) {
-  std::vector<std::function<void()>> work_items;
-  work_items.reserve(count);
-  for (std::size_t index = 0; index < count; ++index) {
-    work_items.push_back([index, &fn]() { fn(index); });
-  }
-  RunJobs(work_items, jobs);
+  RunIndexedTasks(count, jobs, [&](std::size_t index) { fn(index); });
 }
 
 }  // namespace vc

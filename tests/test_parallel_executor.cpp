@@ -49,11 +49,31 @@ void TestRunJobsPropagatesException() {
   Expect(thrown, "RunJobs should propagate exception");
 }
 
+void TestRunJobsSequentialPropagatesAfterAllJobs() {
+  std::atomic<int> count{0};
+  std::vector<std::function<void()>> jobs;
+  jobs.push_back([&count]() { ++count; });
+  jobs.push_back([&count]() { ++count; throw std::runtime_error("boom"); });
+  jobs.push_back([&count]() { ++count; });
+
+  bool thrown = false;
+  try {
+    vc::RunJobs(jobs, 1);
+  } catch (const std::runtime_error& error) {
+    thrown = std::string(error.what()).find("parallel task failed") !=
+                 std::string::npos &&
+             std::string(error.what()).find("boom") != std::string::npos;
+  }
+  Expect(thrown, "RunJobs sequential exception should be wrapped");
+  Expect(count.load() == 3, "RunJobs sequential should finish all jobs");
+}
+
 }  // namespace
 
 int main() {
   TestRunJobsSequential();
   TestRunJobsParallel();
   TestRunJobsPropagatesException();
+  TestRunJobsSequentialPropagatesAfterAllJobs();
   return 0;
 }

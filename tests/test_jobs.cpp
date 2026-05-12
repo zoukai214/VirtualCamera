@@ -117,6 +117,29 @@ bool TestParallelForPropagatesException() {
   return false;
 }
 
+bool TestParallelForSequentialPropagatesAfterAllItems() {
+  std::atomic<int> count{0};
+  try {
+    vc::ParallelFor(4, 1, [&](std::size_t index) {
+      ++count;
+      if (index == 2) {
+        throw std::runtime_error("boom");
+      }
+    });
+  } catch (const std::runtime_error& ex) {
+    const std::string message = ex.what();
+    if (message.find("parallel task failed") != std::string::npos &&
+        message.find("boom") != std::string::npos && count.load() == 4) {
+      return true;
+    }
+    std::cerr << "unexpected exception or count: " << message << ", count="
+              << count.load() << "\n";
+    return false;
+  }
+  std::cerr << "expected exception\n";
+  return false;
+}
+
 }  // namespace
 
 int main() {
@@ -124,5 +147,6 @@ int main() {
   if (!TestResolveJobs()) return 1;
   if (!TestParallelForRunsAllItems()) return 1;
   if (!TestParallelForPropagatesException()) return 1;
+  if (!TestParallelForSequentialPropagatesAfterAllItems()) return 1;
   return 0;
 }
