@@ -21,6 +21,8 @@ void TestWriteUndistortJson() {
   vc::CalibrationParam calibration;
   calibration.extrinsic_matrix = Eigen::Matrix4d::Identity();
   calibration.intrinsic_matrix = Eigen::Matrix3d::Identity();
+  calibration.intrinsic_matrix(0, 2) = 321.0;
+  calibration.intrinsic_matrix(1, 2) = 123.0;
   calibration.dist_data = {9, 9, 9, 9, 9, 9, 9, 9};
 
   vc::NewIntrinsicConfig new_intrinsic;
@@ -30,12 +32,15 @@ void TestWriteUndistortJson() {
   new_intrinsic.center_v = 20.0;
   new_intrinsic.image_width = 128;
   new_intrinsic.image_height = 64;
+  new_intrinsic.center = 0;
 
   vc::WriteRt024UndistortJson(output, calibration, new_intrinsic);
   const auto json = vc::ReadJson(output);
   Expect(json.contains("undistort_setting"), "undistort_setting");
   const auto& setting = json.at("undistort_setting");
   Expect(setting.at("intrinsics").at(0).at(0).get<double>() == 100.0, "undistort fx");
+  Expect(setting.at("intrinsics").at(0).at(2).get<double>() == 321.0, "undistort cx");
+  Expect(setting.at("intrinsics").at(1).at(2).get<double>() == 123.0, "undistort cy");
   Expect(setting.at("distort").at(0).get<double>() == 0.0, "undistort distortion should be zero");
 }
 

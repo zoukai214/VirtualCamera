@@ -43,6 +43,8 @@ struct VirtualCameraTaskConfig {
   std::string conf_extri_key;
   std::string image_dir;
   std::string save_dir;
+  std::string calib_json;
+  std::string file_prefix;
   std::string vc_mapx_name;
   std::string vc_mapy_name;
   std::string src2vc_mapx_name;
@@ -76,6 +78,8 @@ struct PipelineConfig {
   int save_undistort_json = 0;
   int conf_type = 0;
   std::string dataset_root;
+  std::string golden_root;
+  std::string output_root;
   std::vector<VirtualCameraTaskConfig> virtual_tasks;
   std::vector<UndistortTaskConfig> undistort_tasks;
 };

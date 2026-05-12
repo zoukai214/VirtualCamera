@@ -24,6 +24,8 @@ void TestLoadPipelineConfigSuccess() {
   const std::string path = root + "/config.json";
   WriteText(path, R"json({
     "dataset_root": "/workspace/GACRT024_1754812994",
+    "golden_root": "/workspace/GACRT024_1754812994",
+    "output_root": "build/rt024_output",
     "conf_dir_path": "calib_extract/",
     "image_dir_path": "image_raw/",
     "vc_image_dir_path": "image_virtual_camera/",
@@ -47,6 +49,8 @@ void TestLoadPipelineConfigSuccess() {
       "conf_extri_key": "camera-front-wide-to-car",
       "image_dir": "front_wide/",
       "save_dir": "front_wide_110/",
+      "calib_json": "calib_cam_front_wide_fov110.json",
+      "file_prefix": "fw110",
       "camera_id": 1,
       "image_width": 3840,
       "image_height": 2160,
@@ -93,9 +97,14 @@ void TestLoadPipelineConfigSuccess() {
 
   const vc::PipelineConfig config = vc::LoadPipelineConfig(path);
   Expect(config.dataset_root == "/workspace/GACRT024_1754812994", "dataset_root");
+  Expect(config.golden_root == "/workspace/GACRT024_1754812994", "golden_root");
+  Expect(config.output_root == "build/rt024_output", "output_root");
   Expect(config.virtual_tasks.size() == 1, "virtual task count");
   Expect(config.undistort_tasks.size() == 1, "undistort task count");
   Expect(config.virtual_tasks.front().save_dir == "front_wide_110/", "save_dir");
+  Expect(config.virtual_tasks.front().calib_json == "calib_cam_front_wide_fov110.json",
+         "calib_json");
+  Expect(config.virtual_tasks.front().file_prefix == "fw110", "file_prefix");
   Expect(config.virtual_tasks.front().src2vc_mapx_name == "fw110_src2vc_mapX.bin",
          "src2vc_mapx_name");
   Expect(config.undistort_tasks.front().image_dir == "front_wide/", "image_dir");

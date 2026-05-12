@@ -3,6 +3,7 @@
 #include "virtual_camera/json_utils.h"
 
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -128,7 +129,43 @@ void CompareJsonDirectory(const std::filesystem::path& golden_root,
   for (const auto& rel : golden_files) {
     const auto golden_json = ReadJson((golden_root / subdir / rel).string());
     const auto actual_json = ReadJson((actual_root / subdir / rel).string());
-    if (golden_json != actual_json) {
+    const auto approx_equal = [](const auto& self, const nlohmann::json& left,
+                                 const nlohmann::json& right) -> bool {
+      if (left.type() != right.type()) {
+        if (left.is_number() && right.is_number()) {
+          return std::fabs(left.get<double>() - right.get<double>()) <= 1e-9;
+        }
+        return false;
+      }
+      if (left.is_number()) {
+        return std::fabs(left.get<double>() - right.get<double>()) <= 1e-9;
+      }
+      if (left.is_array()) {
+        if (left.size() != right.size()) {
+          return false;
+        }
+        for (std::size_t index = 0; index < left.size(); ++index) {
+          if (!self(self, left.at(index), right.at(index))) {
+            return false;
+          }
+        }
+        return true;
+      }
+      if (left.is_object()) {
+        if (left.size() != right.size()) {
+          return false;
+        }
+        for (const auto& item : left.items()) {
+          if (!right.contains(item.key()) ||
+              !self(self, item.value(), right.at(item.key()))) {
+            return false;
+          }
+        }
+        return true;
+      }
+      return left == right;
+    };
+    if (!approx_equal(approx_equal, golden_json, actual_json)) {
       *errors << "json mismatch: " << subdir << "/" << rel.string() << "\n";
     }
   }

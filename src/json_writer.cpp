@@ -80,9 +80,11 @@ void WriteRt024UndistortJson(const std::string& output_path,
                              const NewIntrinsicConfig& new_intrinsic) {
   Eigen::Matrix3d intrinsics = Eigen::Matrix3d::Identity();
   intrinsics(0, 0) = new_intrinsic.focal_u;
-  intrinsics(0, 2) = new_intrinsic.center_u;
+  intrinsics(0, 2) =
+      new_intrinsic.center == 0 ? calibration.intrinsic_matrix(0, 2) : new_intrinsic.center_u;
   intrinsics(1, 1) = new_intrinsic.focal_v;
-  intrinsics(1, 2) = new_intrinsic.center_v;
+  intrinsics(1, 2) =
+      new_intrinsic.center == 0 ? calibration.intrinsic_matrix(1, 2) : new_intrinsic.center_v;
 
   const std::vector<double> zero_dist(calibration.dist_data.size(), 0.0);
   nlohmann::json json = {

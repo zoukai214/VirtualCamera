@@ -47,6 +47,8 @@ PipelineConfig LoadPipelineConfig(const std::string& config_path) {
 
   PipelineConfig cfg;
   cfg.dataset_root = Required<std::string>(json, "dataset_root");
+  cfg.golden_root = json.value("golden_root", cfg.dataset_root);
+  cfg.output_root = json.value("output_root", cfg.dataset_root);
   cfg.paths.dataset_root = cfg.dataset_root;
   cfg.paths.conf_dir_path = Required<std::string>(json, "conf_dir_path");
   cfg.paths.image_dir_path = Required<std::string>(json, "image_dir_path");
@@ -75,6 +77,8 @@ PipelineConfig LoadPipelineConfig(const std::string& config_path) {
     task.conf_extri_key = Required<std::string>(task_json, "conf_extri_key");
     task.image_dir = Required<std::string>(task_json, "image_dir");
     task.save_dir = Required<std::string>(task_json, "save_dir");
+    task.calib_json = Required<std::string>(task_json, "calib_json");
+    task.file_prefix = Required<std::string>(task_json, "file_prefix");
     task.vc_mapx_name = Required<std::string>(task_json, "vc_mapX_name");
     task.vc_mapy_name = Required<std::string>(task_json, "vc_mapY_name");
     task.src2vc_mapx_name = Required<std::string>(task_json, "src2vc_mapX_name");

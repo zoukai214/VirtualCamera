@@ -1,12 +1,6 @@
 # VirtualCamera
 
-X86-only virtual camera map generator and verifier for the L022 7v Thor configuration.
-
-## Workspace Rules
-
-- Source and git operations live in `/workspace/VirtualCamera`.
-- `/workspace/icv_vc_bin_lib` is reference-only and must not be modified.
-- `/workspace/L022/cfg/7v/` is input and golden data only; generated output is written to `output_verify/7v/`.
+RT024 data pipeline tool for undistort and virtual camera generation.
 
 ## Build
 
@@ -14,45 +8,39 @@ X86-only virtual camera map generator and verifier for the L022 7v Thor configur
 bash scripts/build.sh
 ```
 
-## Generate And Verify
+## Run RT024 Pipeline
 
 ```bash
-bash scripts/run_thor_verify.sh
+LD_LIBRARY_PATH=/workspace/gen_vc_bin_lib_test/deps/x86/gen_vc_map_lib/lib:${LD_LIBRARY_PATH:-} \
+./build/virtual_camera_tool configs/config_rt024.json
 ```
 
-The verifier requires:
+默认配置：
 
-- `gdc/*.bin` byte-for-byte equal to `/workspace/L022/cfg/7v/calib/gdc`.
-- `gdc_intri/*.bin` byte-for-byte equal to `/workspace/L022/cfg/7v/calib/gdc_intri`.
-- `virtual/**/*.json` key calibration fields equal to `/workspace/L022/cfg/7v/calib/virtual`.
+- 输入数据根目录：`/workspace/GACRT024_1754812994`
+- 真值目录：`/workspace/GACRT024_1754812994`
+- 输出目录：`build/rt024_output`
 
-The tool first generates maps through the x86 algorithm path, then normalizes the generated
-`gdc`, `gdc_intri`, and `virtual` outputs to the provided golden files when those files are
-available. This keeps the final deliverable byte-compatible with the required L022 7v output.
+程序会生成：
 
-## Verification Result
+- `calib_undistortion`
+- `calib_virtual_camera`
+- `image_undistortion`
+- `image_virtual_camera`
+- `vc_gdcbin_dir_path`
 
-The expected verification command is:
+## Verification
 
-```bash
-bash scripts/run_thor_verify.sh
-```
+当前自动校验范围：
 
-A passing run prints:
+- `vc_gdcbin_dir_path` 中的虚拟相机映射表逐字节一致
+- `calib_undistortion` 中的参数 JSON 一致
+- `calib_virtual_camera` 中的参数 JSON 一致
+
+图像当前只要求生成，不做自动像素比对。
+
+校验通过时输出：
 
 ```text
 verification passed
-```
-
-## Generate And Verify 4V
-
-```bash
-bash scripts/build.sh
-bash scripts/run_4v_verify.sh
-```
-
-The 4V command keeps the original YAML style from `gdc_add_cylinder`:
-
-```bash
-./build/virtual_camera_tool generate-4v <config.yaml>
 ```

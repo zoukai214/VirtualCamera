@@ -10,6 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(REF_DEPS_ROOT /workspace/icv_vc_bin_lib/deps/x86)
 set(REF_OPENCV_ROOT ${REF_DEPS_ROOT}/opencv)
 set(REF_EIGEN_ROOT ${REF_DEPS_ROOT}/eigen3-3.3.9)
+set(RT024_MAP_LIB_ROOT /workspace/gen_vc_bin_lib_test/deps/x86/gen_vc_map_lib)
 
 find_package(yaml-cpp REQUIRED)
 
@@ -18,12 +19,15 @@ include_directories(${PROJECT_SOURCE_DIR}/third_party/gdc_add_cylinder/include)
 include_directories(${PROJECT_SOURCE_DIR}/third_party/nlohmann_json/include)
 include_directories(${REF_EIGEN_ROOT}/include/eigen3)
 include_directories(${REF_OPENCV_ROOT}/include)
+include_directories(${RT024_MAP_LIB_ROOT}/include)
 
 set(VIRTUAL_CAMERA_CORE_SOURCES)
 foreach(source_file
     src/json_utils.cpp
     src/pipeline_config.cpp
     src/calibration_loader.cpp
+    src/undistort_processor.cpp
+    src/virtual_camera_processor.cpp
     src/task_builder.cpp
     src/map_generator.cpp
     src/json_writer.cpp
@@ -54,6 +58,9 @@ target_link_libraries(virtual_camera_core PUBLIC
     ${REF_OPENCV_ROOT}/lib/liblibpng.a
     ${REF_OPENCV_ROOT}/lib/liblibtiff.a
     ${REF_OPENCV_ROOT}/lib/liblibwebp.a
+    ${RT024_MAP_LIB_ROOT}/lib/libgen_vc_map_lib.so.1.0
+    ${RT024_MAP_LIB_ROOT}/lib/libgdc_bin_generator.so
+    ${RT024_MAP_LIB_ROOT}/lib/libgdc.so
     pthread
     rt
     dl
