@@ -215,13 +215,20 @@ void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
                                normalized_json_output);
     }
 
-    const std::filesystem::path image_output =
+    const std::filesystem::path input_dir =
+        std::filesystem::path(config.dataset_root) / config.paths.image_dir_path /
+        task.image_dir;
+    const std::filesystem::path image_root =
         std::filesystem::path(config.output_root) / config.paths.vc_image_dir_path /
         task.save_dir;
-    const std::string normalized_image_output = NormalizedDestination(image_output);
-    if (!image_outputs.insert(normalized_image_output).second) {
-      throw std::runtime_error("duplicate virtual camera output image path: " +
-                               normalized_image_output);
+    for (const auto& input_path : ListFiles(input_dir)) {
+      const std::filesystem::path image_output =
+          image_root / (task.file_prefix + "_" + input_path.filename().string());
+      const std::string normalized_image_output = NormalizedDestination(image_output);
+      if (!image_outputs.insert(normalized_image_output).second) {
+        throw std::runtime_error("duplicate virtual camera output image path: " +
+                                 normalized_image_output);
+      }
     }
   }
 }

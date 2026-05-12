@@ -199,7 +199,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs() {
       MakeDuplicateImageTask("front_wide/", "image_collision_a.json",
                              "image_collision_a"));
   config.virtual_tasks.push_back(
-      MakeDuplicateImageTask("front_wide//", "image_collision_b.json",
+      MakeDuplicateImageTask("front_wide/", "image_collision_b.json",
                              "image_collision_b"));
 
   bool thrown = false;
@@ -217,6 +217,42 @@ void TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs() {
          "duplicate image validation should not create image outputs");
   Expect(!std::filesystem::exists(root / "vc_gdcbin_dir_path"),
          "duplicate image validation should not create map outputs");
+}
+
+void TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes() {
+  const std::filesystem::path root = MakeTestRoot("parallel_image_no_collision");
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.virtual_camera_parallelism = 2;
+
+  vc::VirtualCameraTaskConfig left = MakeValidTask();
+  left.save_dir = "shared_output/";
+  left.file_prefix = "left";
+  left.calib_json = "left.json";
+  left.vc_mapx_name = "left_vc_mapX.bin";
+  left.vc_mapy_name = "left_vc_mapY.bin";
+  left.src2vc_mapx_name = "left_src2vc_mapX.bin";
+  left.src2vc_mapy_name = "left_src2vc_mapY.bin";
+
+  vc::VirtualCameraTaskConfig right = MakeValidTask();
+  right.save_dir = "shared_output//";
+  right.file_prefix = "right";
+  right.calib_json = "right.json";
+  right.vc_mapx_name = "right_vc_mapX.bin";
+  right.vc_mapy_name = "right_vc_mapY.bin";
+  right.src2vc_mapx_name = "right_src2vc_mapX.bin";
+  right.src2vc_mapy_name = "right_src2vc_mapY.bin";
+
+  config.virtual_tasks.push_back(left);
+  config.virtual_tasks.push_back(right);
+
+  vc::RunVirtualCameraPipeline(config);
+
+  Expect(std::filesystem::exists(root / "image_virtual_camera" / "shared_output" /
+                                 "left_1754812994899000000_50_0.jpg"),
+         "left prefix output should exist");
+  Expect(std::filesystem::exists(root / "image_virtual_camera" / "shared_output" /
+                                 "right_1754812994899000000_50_0.jpg"),
+         "right prefix output should exist");
 }
 
 void TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs() {
@@ -253,6 +289,7 @@ int main() {
   TestRunVirtualCameraPipelineSerialStopsAfterFirstFailure();
   TestRunVirtualCameraPipelineRejectsDuplicateJsonOutputs();
   TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs();
+  TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes();
   TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs();
   return 0;
 }
