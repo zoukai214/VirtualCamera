@@ -327,6 +327,23 @@ void TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs() {
          "duplicate map validation should not create map outputs");
 }
 
+void TestRunVirtualCameraPipelineWritesOutputsForRealDataset() {
+  const std::filesystem::path root = MakeTestRoot("real_dataset");
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.virtual_camera_parallelism = 1;
+  config.virtual_tasks.push_back(MakeValidTask());
+
+  vc::RunVirtualCameraPipeline(config);
+
+  Expect(std::filesystem::exists(root / "calib_virtual_camera" /
+                                 "calib_cam_front_wide_fov110.json"),
+         "virtual camera json should exist");
+  Expect(std::filesystem::exists(root / "vc_gdcbin_dir_path" / "fw110_vc_mapX.bin"),
+         "virtual camera map should exist");
+  Expect(std::filesystem::exists(root / "image_virtual_camera" / "front_wide_110"),
+         "virtual camera image dir should exist");
+}
+
 }  // namespace
 
 int main() {
@@ -336,5 +353,6 @@ int main() {
   TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes();
   TestRunVirtualCameraPipelineRejectsCrossTypeNormalizedAlias();
   TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs();
+  TestRunVirtualCameraPipelineWritesOutputsForRealDataset();
   return 0;
 }

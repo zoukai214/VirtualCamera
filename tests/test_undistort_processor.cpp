@@ -124,11 +124,28 @@ void TestRunUndistortPipelineRejectsDuplicateImageOutputs() {
          "duplicate image validation should not create image outputs");
 }
 
+void TestRunUndistortPipelineWritesOutputsForRealDataset() {
+  const std::filesystem::path root = MakeTestRoot("real_dataset");
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.undistort_parallelism = 1;
+  config.undistort_tasks.push_back(
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/"));
+
+  vc::RunUndistortPipeline(config);
+
+  Expect(std::filesystem::exists(root / "calib_undistortion" /
+                                 "calib_camera_front_wide_to_car.json"),
+         "undistort json should exist");
+  Expect(std::filesystem::exists(root / "image_undistortion" / "front_wide"),
+         "undistort image dir should exist");
+}
+
 }  // namespace
 
 int main() {
   TestRunUndistortPipelineSerialStopsAfterFirstFailure();
   TestRunUndistortPipelineRejectsDuplicateJsonOutputs();
   TestRunUndistortPipelineRejectsDuplicateImageOutputs();
+  TestRunUndistortPipelineWritesOutputsForRealDataset();
   return 0;
 }

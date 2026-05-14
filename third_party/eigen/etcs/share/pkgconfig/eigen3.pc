@@ -1,0 +1,9 @@
+prefix=/home/gz06141/workspace/proj_adigo_builder/3party/artifacts/J5-X9U-x86/eigen-3.3.9
+exec_prefix=${prefix}
+
+Name: Eigen3
+Description: A C++ template library for linear algebra: vectors, matrices, and related algorithms
+Requires:
+Version: 3.3.9
+Libs:
+Cflags: -I${prefix}/include/eigen3

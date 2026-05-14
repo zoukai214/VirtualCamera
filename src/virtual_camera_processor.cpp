@@ -5,8 +5,10 @@
 #include "virtual_camera/json_utils.h"
 #include "virtual_camera/json_writer.h"
 #include "virtual_camera/map_generator.h"
+#include "virtual_camera/remap_generator.h"
 
-#include <gen_vc_map.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include <algorithm>
 #include <filesystem>
@@ -29,43 +31,6 @@ std::vector<std::filesystem::path> ListFiles(const std::filesystem::path& dir) {
   }
   std::sort(files.begin(), files.end());
   return files;
-}
-
-void FillCameraMatrix(const Eigen::Matrix3d& intrinsic, double matrix[3][3]) {
-  for (int row = 0; row < 3; ++row) {
-    for (int col = 0; col < 3; ++col) {
-      matrix[row][col] = intrinsic(row, col);
-    }
-  }
-}
-
-void FillExtrinsic(const Eigen::Matrix4d& extrinsic, double matrix[4][4]) {
-  for (int row = 0; row < 4; ++row) {
-    for (int col = 0; col < 4; ++col) {
-      matrix[row][col] = extrinsic(row, col);
-    }
-  }
-}
-
-void FillDistortion(const std::vector<double>& distortion, double values[8]) {
-  std::fill(values, values + 8, 0.0);
-  for (std::size_t index = 0; index < distortion.size() && index < 8; ++index) {
-    values[index] = distortion[index];
-  }
-}
-
-void SaveFloatMap(const std::filesystem::path& path, const cv::Mat& map) {
-  EnsureDirectory(path.parent_path().string());
-  cv::Mat contiguous = map;
-  if (!contiguous.isContinuous()) {
-    contiguous = map.clone();
-  }
-  std::ofstream output(path, std::ios::binary);
-  if (!output.is_open()) {
-    throw std::runtime_error("failed to write map: " + path.string());
-  }
-  output.write(reinterpret_cast<const char*>(contiguous.ptr<float>(0)),
-               static_cast<std::streamsize>(contiguous.total() * sizeof(float)));
 }
 
 std::string NormalizedDestination(const std::filesystem::path& path) {
@@ -114,36 +79,15 @@ VirtualParam BuildVirtualParam(const VirtualCameraTaskConfig& task,
 void RunVirtualCameraTask(const PipelineConfig& config,
                           const VirtualCameraTaskConfig& task) {
   CalibrationParam calibration = LoadVirtualSourceCalibration(config, task);
-
-  double k_array[3][3];
-  double d_array[8];
-  double rt_array[4][4];
-  FillCameraMatrix(calibration.intrinsic_matrix, k_array);
-  FillDistortion(calibration.dist_data, d_array);
-  FillExtrinsic(calibration.extrinsic_matrix, rt_array);
-
-  cv::Mat map_x;
-  cv::Mat map_y;
-  cv::Mat src_map_x;
-  cv::Mat src_map_y;
-  if (config.distort_model == 1) {
-    gen_vc_map_kb(k_array, d_array, rt_array, task.new_intrinsic.image_width,
-                  task.new_intrinsic.image_height, task.new_intrinsic.fov,
-                  task.new_extrinsics.yaw, map_x, map_y, config.showinfo, 1,
-                  task.image_width, task.image_height, src_map_x, src_map_y);
-  } else {
-    gen_vc_map(k_array, d_array, rt_array, task.new_intrinsic.image_width,
-               task.new_intrinsic.image_height, task.new_intrinsic.fov,
-               task.new_extrinsics.yaw, map_x, map_y, config.showinfo, 1,
-               task.image_width, task.image_height, src_map_x, src_map_y);
-  }
+  const VirtualCameraMaps maps =
+      GenerateVirtualCameraMaps(calibration, task, config.distort_model);
 
   const std::filesystem::path map_root =
       std::filesystem::path(config.output_root) / config.paths.vc_gdcbin_dir_path;
-  SaveFloatMap(map_root / task.vc_mapx_name, map_x);
-  SaveFloatMap(map_root / task.vc_mapy_name, map_y);
-  SaveFloatMap(map_root / task.src2vc_mapx_name, src_map_x);
-  SaveFloatMap(map_root / task.src2vc_mapy_name, src_map_y);
+  SaveFloatMapFile((map_root / task.vc_mapx_name).string(), maps.map_x);
+  SaveFloatMapFile((map_root / task.vc_mapy_name).string(), maps.map_y);
+  SaveFloatMapFile((map_root / task.src2vc_mapx_name).string(), maps.src_map_x);
+  SaveFloatMapFile((map_root / task.src2vc_mapy_name).string(), maps.src_map_y);
 
   VirtualParam virtual_param = BuildVirtualParam(task, calibration);
   MapGenerator generator(calibration, virtual_param);
@@ -165,9 +109,8 @@ void RunVirtualCameraTask(const PipelineConfig& config,
       throw std::runtime_error("failed to read image: " + path.string());
     }
     cv::Mat remapped;
-    cv::remap(image, remapped, map_x, map_y, cv::INTER_LINEAR);
-    const std::string output_name =
-        task.file_prefix + "_" + path.filename().string();
+    cv::remap(image, remapped, maps.map_x, maps.map_y, cv::INTER_LINEAR);
+    const std::string output_name = task.file_prefix + "_" + path.filename().string();
     if (!cv::imwrite((output_dir / output_name).string(), remapped)) {
       throw std::runtime_error("failed to write image: " +
                                (output_dir / output_name).string());

@@ -1,13 +1,14 @@
 # VirtualCamera
 
-RT024 数据处理工具，用于生成去畸变参数、虚拟相机参数、去畸变图片、虚拟相机图片和虚拟相机映射表。
+7v RT024 数据处理工具，用于生成去畸变参数、虚拟相机参数、去畸变图片、虚拟相机图片和虚拟相机映射表。
 
 ## 功能概览
 
 - `process_undistort`：生成去畸变参数和去畸变图片
-- `process_virtual_camera`：生成虚拟相机参数、虚拟相机图片和 `bin` 映射表
+- `process_virtual_camera`：生成虚拟相机参数、虚拟相机图片和 float `bin` 映射表
 - 支持串行执行，也支持任务级和相机级并行执行
 - 支持与真值目录做自动结果校验
+- 当前仓库只保留 7v 流程，不再包含 4v 构建和运行入口
 
 ## 编译
 
@@ -25,11 +26,8 @@ bash scripts/build.sh
 
 ## 运行前准备
 
-运行 RT024 流程前，需要保证虚拟相机映射库路径已加入 `LD_LIBRARY_PATH`：
-
-```bash
-export LD_LIBRARY_PATH=/workspace/gen_vc_bin_lib_test/deps/x86/gen_vc_map_lib/lib:${LD_LIBRARY_PATH:-}
-```
+当前项目直接使用仓库内 `third_party` 下的 `opencv`、`eigen`、`nlohmann_json` 构建。
+运行 RT024 流程前不再需要外部 map 动态库，也不需要额外设置 `LD_LIBRARY_PATH`。
 
 测试数据目录说明：
 
@@ -54,7 +52,6 @@ configs/config_rt024.json
 运行命令：
 
 ```bash
-export LD_LIBRARY_PATH=/workspace/gen_vc_bin_lib_test/deps/x86/gen_vc_map_lib/lib:${LD_LIBRARY_PATH:-}
 ./build/virtual_camera_tool configs/config_rt024.json
 ```
 
@@ -75,7 +72,6 @@ configs/config_rt024_parallel_run.json
 运行命令：
 
 ```bash
-export LD_LIBRARY_PATH=/workspace/gen_vc_bin_lib_test/deps/x86/gen_vc_map_lib/lib:${LD_LIBRARY_PATH:-}
 ./build/virtual_camera_tool configs/config_rt024_parallel_run.json
 ```
 
@@ -164,9 +160,11 @@ build/rt024_output_parallel_run
 
 程序运行结束后会自动做结果校验。当前自动校验覆盖：
 
-- `vc_gdcbin_dir_path` 中的虚拟相机映射表逐字节一致
 - `calib_undistortion` 中的参数 JSON 一致
 - `calib_virtual_camera` 中的参数 JSON 一致
+- `vc_gdcbin_dir_path` 中的虚拟相机映射表逐字节一致
+
+图片输出仍会生成，但当前不做真值比对。
 
 校验通过时输出：
 

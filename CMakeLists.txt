@@ -7,21 +7,51 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
-set(REF_DEPS_ROOT /workspace/icv_vc_bin_lib/deps/x86)
-set(REF_OPENCV_ROOT ${REF_DEPS_ROOT}/opencv)
-set(REF_EIGEN_ROOT ${REF_DEPS_ROOT}/eigen3-3.3.9)
-set(RT024_MAP_LIB_ROOT /workspace/gen_vc_bin_lib_test/deps/x86/gen_vc_map_lib)
+set(THIRD_PARTY_ROOT ${PROJECT_SOURCE_DIR}/third_party)
+set(EIGEN_ROOT ${THIRD_PARTY_ROOT}/eigen)
+set(OPENCV_ROOT ${THIRD_PARTY_ROOT}/opencv)
+set(NLOHMANN_JSON_ROOT ${THIRD_PARTY_ROOT}/nlohmann_json/include)
 
 find_package(yaml-cpp REQUIRED)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/gdc_add_cylinder/include)
-include_directories(${PROJECT_SOURCE_DIR}/third_party/nlohmann_json/include)
-include_directories(${REF_EIGEN_ROOT}/include/eigen3)
-include_directories(${REF_OPENCV_ROOT}/include)
-include_directories(${RT024_MAP_LIB_ROOT}/include)
+include_directories(${EIGEN_ROOT}/include/eigen3)
+include_directories(${OPENCV_ROOT}/include)
+include_directories(${NLOHMANN_JSON_ROOT})
+
+function(vc_add_imported_static_library target_name archive_path)
+    if(NOT EXISTS "${archive_path}")
+        message(FATAL_ERROR "Missing vendored OpenCV archive: ${archive_path}")
+    endif()
+    add_library(${target_name} STATIC IMPORTED GLOBAL)
+    set_target_properties(${target_name} PROPERTIES
+        IMPORTED_LOCATION "${archive_path}"
+    )
+endfunction()
+
+vc_add_imported_static_library(vendored_opencv_world ${OPENCV_ROOT}/lib/libopencv_world.a)
+vc_add_imported_static_library(vendored_opencv_zlib ${OPENCV_ROOT}/lib/libzlib.a)
+vc_add_imported_static_library(vendored_opencv_tegra_hal ${OPENCV_ROOT}/lib/libtegra_hal.a)
+vc_add_imported_static_library(vendored_opencv_libjasper ${OPENCV_ROOT}/lib/liblibjasper.a)
+vc_add_imported_static_library(vendored_opencv_libjpeg_turbo ${OPENCV_ROOT}/lib/liblibjpeg-turbo.a)
+vc_add_imported_static_library(vendored_opencv_libpng ${OPENCV_ROOT}/lib/liblibpng.a)
+vc_add_imported_static_library(vendored_opencv_libtiff ${OPENCV_ROOT}/lib/liblibtiff.a)
+vc_add_imported_static_library(vendored_opencv_libwebp ${OPENCV_ROOT}/lib/liblibwebp.a)
+
+add_library(vendored_opencv INTERFACE)
+target_link_libraries(vendored_opencv INTERFACE
+    vendored_opencv_world
+    vendored_opencv_zlib
+    vendored_opencv_tegra_hal
+    vendored_opencv_libjasper
+    vendored_opencv_libjpeg_turbo
+    vendored_opencv_libpng
+    vendored_opencv_libtiff
+    vendored_opencv_libwebp
+)
 
 set(VIRTUAL_CAMERA_CORE_SOURCES)
+list(APPEND VIRTUAL_CAMERA_CORE_SOURCES src/remap_generator.cpp)
 foreach(source_file
     src/json_utils.cpp
     src/pipeline_config.cpp
@@ -32,15 +62,6 @@ foreach(source_file
     src/map_generator.cpp
     src/json_writer.cpp
     src/verifier.cpp
-    src/four_view_runner.cpp
-    third_party/gdc_add_cylinder/src/bin_file_io.cpp
-    third_party/gdc_add_cylinder/src/camera_maps_generator.cpp
-    third_party/gdc_add_cylinder/src/camera_params_loader.cpp
-    third_party/gdc_add_cylinder/src/config_loader.cpp
-    third_party/gdc_add_cylinder/src/cylinder_map.cpp
-    third_party/gdc_add_cylinder/src/data_types.cpp
-    third_party/gdc_add_cylinder/src/simple_json_parser.cpp
-    third_party/gdc_add_cylinder/src/weight_calculator.cpp
 )
     if(EXISTS ${PROJECT_SOURCE_DIR}/${source_file})
         list(APPEND VIRTUAL_CAMERA_CORE_SOURCES ${source_file})
@@ -50,17 +71,7 @@ endforeach()
 add_library(virtual_camera_core ${VIRTUAL_CAMERA_CORE_SOURCES})
 
 target_link_libraries(virtual_camera_core PUBLIC
-    ${REF_OPENCV_ROOT}/lib/libopencv_world.a
-    ${REF_OPENCV_ROOT}/lib/libzlib.a
-    ${REF_OPENCV_ROOT}/lib/libtegra_hal.a
-    ${REF_OPENCV_ROOT}/lib/liblibjasper.a
-    ${REF_OPENCV_ROOT}/lib/liblibjpeg-turbo.a
-    ${REF_OPENCV_ROOT}/lib/liblibpng.a
-    ${REF_OPENCV_ROOT}/lib/liblibtiff.a
-    ${REF_OPENCV_ROOT}/lib/liblibwebp.a
-    ${RT024_MAP_LIB_ROOT}/lib/libgen_vc_map_lib.so.1.0
-    ${RT024_MAP_LIB_ROOT}/lib/libgdc_bin_generator.so
-    ${RT024_MAP_LIB_ROOT}/lib/libgdc.so
+    vendored_opencv
     pthread
     rt
     dl
@@ -82,16 +93,6 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_verifier.cpp)
     target_link_libraries(test_verifier PRIVATE virtual_camera_core)
 endif()
 
-if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_four_view_config.cpp)
-    add_executable(test_four_view_config tests/test_four_view_config.cpp)
-    target_link_libraries(test_four_view_config PRIVATE virtual_camera_core)
-endif()
-
-if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_four_view_camera_params.cpp)
-    add_executable(test_four_view_camera_params tests/test_four_view_camera_params.cpp)
-    target_link_libraries(test_four_view_camera_params PRIVATE virtual_camera_core)
-endif()
-
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_jobs.cpp)
     add_executable(test_jobs tests/test_jobs.cpp)
     target_link_libraries(test_jobs PRIVATE virtual_camera_core)
@@ -105,6 +106,11 @@ endif()
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_virtual_camera_processor.cpp)
     add_executable(test_virtual_camera_processor tests/test_virtual_camera_processor.cpp)
     target_link_libraries(test_virtual_camera_processor PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_remap_generator.cpp)
+    add_executable(test_remap_generator tests/test_remap_generator.cpp)
+    target_link_libraries(test_remap_generator PRIVATE virtual_camera_core)
 endif()
 
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_pipeline_runner.cpp)
