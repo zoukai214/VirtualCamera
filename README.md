@@ -24,6 +24,36 @@ bash scripts/build.sh
 ./build/virtual_camera_tool
 ```
 
+## 打包
+
+生成下游可直接运行的独立目录：
+
+```bash
+cmake -S . -B build
+cmake --build build -j"$(nproc)"
+rm -rf build/rectify_virtual_camera
+cmake --install build --prefix /workspace/VirtualCamera/build/rectify_virtual_camera
+```
+
+打包结果目录：
+
+```bash
+build/rectify_virtual_camera
+```
+
+其中默认配置为并行版本：
+
+```bash
+configs/config_rt024_parallel_run.json
+```
+
+下游进入包目录后可直接运行：
+
+```bash
+cd build/rectify_virtual_camera
+bash image_virtual.bash
+```
+
 ## 运行前准备
 
 当前项目直接使用仓库内 `third_party` 下的 `opencv`、`eigen`、`nlohmann_json` 构建。
