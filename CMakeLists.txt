@@ -142,3 +142,34 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_rt024_verifier.cpp)
     add_executable(test_rt024_verifier tests/test_rt024_verifier.cpp)
     target_link_libraries(test_rt024_verifier PRIVATE virtual_camera_core)
 endif()
+
+set(RECTIFY_PACKAGE_OUTPUT_X86_LIB_DIR output/x86/lib)
+
+if(TARGET virtual_camera_tool)
+    install(TARGETS virtual_camera_tool
+        RUNTIME DESTINATION .
+    )
+endif()
+
+install(FILES
+    ${PROJECT_SOURCE_DIR}/configs/config_rt024_parallel_run.json
+    DESTINATION .
+    RENAME config.json
+)
+
+install(PROGRAMS
+    ${PROJECT_SOURCE_DIR}/image_virtual.bash
+    DESTINATION .
+)
+
+install(DIRECTORY
+    ${PROJECT_SOURCE_DIR}/third_party/opencv/lib/
+    DESTINATION ${RECTIFY_PACKAGE_OUTPUT_X86_LIB_DIR}
+    FILES_MATCHING
+    PATTERN "*.so"
+    PATTERN "*.so.*"
+)
+
+install(CODE
+    "file(MAKE_DIRECTORY \"\$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}/${RECTIFY_PACKAGE_OUTPUT_X86_LIB_DIR}\")"
+)
