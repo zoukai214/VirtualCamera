@@ -62,6 +62,7 @@ foreach(source_file
     src/map_generator.cpp
     src/json_writer.cpp
     src/verifier.cpp
+    src/runtime_args.cpp
 )
     if(EXISTS ${PROJECT_SOURCE_DIR}/${source_file})
         list(APPEND VIRTUAL_CAMERA_CORE_SOURCES ${source_file})
@@ -141,6 +142,16 @@ endif()
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_rt024_verifier.cpp)
     add_executable(test_rt024_verifier tests/test_rt024_verifier.cpp)
     target_link_libraries(test_rt024_verifier PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_runtime_args.cpp)
+    add_executable(test_runtime_args tests/test_runtime_args.cpp)
+    target_link_libraries(test_runtime_args PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_rt024_runtime.cpp)
+    add_executable(test_rt024_runtime tests/test_rt024_runtime.cpp)
+    target_link_libraries(test_rt024_runtime PRIVATE virtual_camera_core)
 endif()
 
 set(RECTIFY_PACKAGE_OUTPUT_X86_LIB_DIR output/x86/lib)

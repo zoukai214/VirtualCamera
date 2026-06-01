@@ -81,7 +81,6 @@ struct PipelineConfig {
   int save_undistort_json = 0;
   int conf_type = 0;
   std::string dataset_root;
-  std::string golden_root;
   std::string output_root;
   std::vector<VirtualCameraTaskConfig> virtual_tasks;
   std::vector<UndistortTaskConfig> undistort_tasks;

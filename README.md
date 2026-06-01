@@ -7,7 +7,7 @@
 - `process_undistort`：生成去畸变参数和去畸变图片
 - `process_virtual_camera`：生成虚拟相机参数、虚拟相机图片和 float `bin` 映射表
 - 支持串行执行，也支持任务级和相机级并行执行
-- 支持与真值目录做自动结果校验
+- 支持在调试模式下与真值目录做结果校验
 - 当前仓库只保留 7v 流程，不再包含 4v 构建和运行入口
 
 ## 编译
@@ -51,7 +51,9 @@ configs/config_rt024_parallel_run.json
 
 ```bash
 cd build/rectify_virtual_camera
-bash image_virtual.bash
+bash image_virtual.bash \
+  --dataset_root /workspace/GACRT024_1754812994 \
+  --config_path ./config.json
 ```
 
 ## 运行前准备
@@ -82,13 +84,15 @@ configs/config_rt024.json
 运行命令：
 
 ```bash
-./build/virtual_camera_tool configs/config_rt024.json
+./build/virtual_camera_tool \
+  --dataset_root /workspace/GACRT024_1754812994 \
+  --config_path configs/config_rt024.json
 ```
 
 默认输出目录：
 
 ```bash
-build/rt024_output
+/workspace/GACRT024_1754812994
 ```
 
 ## 并行配置运行
@@ -102,7 +106,10 @@ configs/config_rt024_parallel_run.json
 运行命令：
 
 ```bash
-./build/virtual_camera_tool configs/config_rt024_parallel_run.json
+./build/virtual_camera_tool \
+  --dataset_root /workspace/GACRT024_1754812994 \
+  --config_path configs/config_rt024_parallel_run.json \
+  --output_root build/rt024_output_parallel_run
 ```
 
 本次验证使用的并行输出目录：
@@ -188,13 +195,24 @@ build/rt024_output_parallel_run
 
 ## 校验与测试
 
-程序运行结束后会自动做结果校验。当前自动校验覆盖：
+默认运行不会自动做真值校验，只会生成输出。当前调试校验覆盖：
 
 - `calib_undistortion` 中的参数 JSON 一致
 - `calib_virtual_camera` 中的参数 JSON 一致
 - `vc_gdcbin_dir_path` 中的虚拟相机映射表逐字节一致
 
 图片输出仍会生成，但当前不做真值比对。
+
+调试模式下可显式开启校验：
+
+```bash
+./build/virtual_camera_tool \
+  --dataset_root /workspace/GACRT024_1754812994 \
+  --config_path configs/config_rt024_parallel_run.json \
+  --output_root build/rt024_output_parallel_run \
+  --debug \
+  --golden_root /workspace/GACRT024_1754812994
+```
 
 校验通过时输出：
 
@@ -205,12 +223,20 @@ verification passed
 当前分支本次回归中，以下命令已验证通过：
 
 ```bash
+./build/test_runtime_args
+./build/test_rt024_runtime
 ./build/test_parallel_executor
-./build/test_pipeline_runner
-./build/test_undistort_processor
-./build/test_virtual_camera_processor
+./build/test_jobs
 ./build/test_pipeline_config
-./build/test_rt024_json_writer
 ./build/test_rt024_verifier
-./build/virtual_camera_tool configs/config_rt024_parallel_run.json
+./build/virtual_camera_tool \
+  --dataset_root /workspace/GACRT024_1754812994 \
+  --config_path configs/config_rt024_parallel_run.json \
+  --output_root build/rt024_output_parallel_run
+./build/virtual_camera_tool \
+  --dataset_root /workspace/GACRT024_1754812994 \
+  --config_path configs/config_rt024_parallel_run.json \
+  --output_root build/rt024_output_parallel_run \
+  --debug \
+  --golden_root /workspace/GACRT024_1754812994
 ```
