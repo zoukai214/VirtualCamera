@@ -23,6 +23,7 @@ struct Rt024RuntimeArgs {
 };
 
 std::string BuildRt024Usage(const std::string& program_name);
+// debug 模式下要求 output_root 与 golden_root 不能相同。
 Rt024RuntimeArgs ParseRt024RuntimeArgs(int argc, const char* const* argv);
 void ApplyRt024RuntimeArgs(const Rt024RuntimeArgs& args, PipelineConfig* config);
 VerifyResult MaybeVerifyRt024Outputs(

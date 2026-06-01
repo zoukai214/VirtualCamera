@@ -82,6 +82,11 @@ Rt024RuntimeArgs ParseRt024RuntimeArgs(int argc, const char* const* argv) {
   if (!args.debug && !args.golden_root.empty()) {
     throw MakeUsageError("--golden_root requires --debug", argv[0]);
   }
+  if (args.debug && args.output_root == args.golden_root) {
+    throw MakeUsageError(
+        "--output_root must differ from --golden_root in debug mode",
+        argv[0]);
+  }
 
   return args;
 }
