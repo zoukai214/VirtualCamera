@@ -1,5 +1,7 @@
 #include "virtual_camera/runtime_args.h"
 
+#include <functional>
+#include <stdexcept>
 #include <string>
 
 namespace vc {
@@ -82,6 +84,26 @@ Rt024RuntimeArgs ParseRt024RuntimeArgs(int argc, const char* const* argv) {
   }
 
   return args;
+}
+
+void ApplyRt024RuntimeArgs(const Rt024RuntimeArgs& args, PipelineConfig* config) {
+  if (config == nullptr) {
+    throw std::invalid_argument("config must not be null");
+  }
+
+  config->dataset_root = args.dataset_root;
+  config->output_root = args.output_root.empty() ? args.dataset_root : args.output_root;
+  config->paths.dataset_root = config->dataset_root;
+}
+
+VerifyResult MaybeVerifyRt024Outputs(
+    const Rt024RuntimeArgs& args, const PipelineConfig& config,
+    const std::function<VerifyResult(const std::string&, const std::string&)>&
+        verifier) {
+  if (!args.debug) {
+    return VerifyResult{true, "verification skipped (debug disabled)"};
+  }
+  return verifier(args.golden_root, config.output_root);
 }
 
 }  // namespace vc

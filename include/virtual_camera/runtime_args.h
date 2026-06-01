@@ -1,5 +1,9 @@
 #pragma once
 
+#include "virtual_camera/pipeline_config.h"
+#include "virtual_camera/verifier.h"
+
+#include <functional>
 #include <stdexcept>
 #include <string>
 
@@ -20,5 +24,10 @@ struct Rt024RuntimeArgs {
 
 std::string BuildRt024Usage(const std::string& program_name);
 Rt024RuntimeArgs ParseRt024RuntimeArgs(int argc, const char* const* argv);
+void ApplyRt024RuntimeArgs(const Rt024RuntimeArgs& args, PipelineConfig* config);
+VerifyResult MaybeVerifyRt024Outputs(
+    const Rt024RuntimeArgs& args, const PipelineConfig& config,
+    const std::function<VerifyResult(const std::string&, const std::string&)>&
+        verifier);
 
 }  // namespace vc
