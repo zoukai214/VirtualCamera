@@ -1,5 +1,6 @@
 #include "virtual_camera/runtime_args.h"
 
+#include <filesystem>
 #include <functional>
 #include <stdexcept>
 #include <string>
@@ -22,6 +23,10 @@ const char* RequireValue(int argc, const char* const* argv, int index,
     throw MakeUsageError("missing value for " + flag, argv[0]);
   }
   return value;
+}
+
+std::filesystem::path NormalizePathForComparison(const std::string& path) {
+  return std::filesystem::absolute(path).lexically_normal();
 }
 
 }  // namespace
@@ -82,7 +87,9 @@ Rt024RuntimeArgs ParseRt024RuntimeArgs(int argc, const char* const* argv) {
   if (!args.debug && !args.golden_root.empty()) {
     throw MakeUsageError("--golden_root requires --debug", argv[0]);
   }
-  if (args.debug && args.output_root == args.golden_root) {
+  if (args.debug &&
+      NormalizePathForComparison(args.output_root) ==
+          NormalizePathForComparison(args.golden_root)) {
     throw MakeUsageError(
         "--output_root must differ from --golden_root in debug mode",
         argv[0]);

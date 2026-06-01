@@ -82,6 +82,25 @@ void TestParseRt024RuntimeArgsRejectsOutputRootMatchingGoldenRoot() {
   Expect(thrown, "matching output_root and golden_root should fail");
 }
 
+void TestParseRt024RuntimeArgsRejectsEquivalentRootSpellings() {
+  const char* argv[] = {"rt024_tool",    "--dataset_root", "/tmp/dataset",
+                        "--config_path", "/tmp/config.json",
+                        "--output_root",  "/tmp/shared",
+                        "--debug",        "--golden_root", "/tmp/./shared"};
+  bool thrown = false;
+  try {
+    static_cast<void>(vc::ParseRt024RuntimeArgs(10, argv));
+    throw std::runtime_error(
+        "expected UsageError for equivalent root spellings");
+  } catch (const vc::UsageError& error) {
+    const std::string message = error.what();
+    thrown = message.find("output_root") != std::string::npos &&
+             message.find("golden_root") != std::string::npos &&
+             message.find("must differ") != std::string::npos;
+  }
+  Expect(thrown, "equivalent root spellings should fail");
+}
+
 void TestParseRt024RuntimeArgsRejectsUnknownArgs() {
   const char* argv[] = {"rt024_tool",    "--dataset_root", "/tmp/dataset",
                         "--config_path", "/tmp/config.json",
@@ -155,6 +174,7 @@ int main() {
   TestParseRt024RuntimeArgsRequiresGoldenRootWhenDebugOn();
   TestParseRt024RuntimeArgsRejectsGoldenRootWithoutDebug();
   TestParseRt024RuntimeArgsRejectsOutputRootMatchingGoldenRoot();
+  TestParseRt024RuntimeArgsRejectsEquivalentRootSpellings();
   TestParseRt024RuntimeArgsRejectsUnknownArgs();
   TestParseRt024RuntimeArgsRejectsMissingValues();
   TestParseRt024RuntimeArgsRequiresDatasetRootFlag();
