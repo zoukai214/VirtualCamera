@@ -15,7 +15,11 @@ const char* RequireValue(int argc, const char* const* argv, int index,
   if (index + 1 >= argc) {
     throw MakeUsageError("missing value for " + flag, argv[0]);
   }
-  return argv[index + 1];
+  const char* value = argv[index + 1];
+  if (value != nullptr && std::string(value).rfind("--", 0) == 0) {
+    throw MakeUsageError("missing value for " + flag, argv[0]);
+  }
+  return value;
 }
 
 }  // namespace

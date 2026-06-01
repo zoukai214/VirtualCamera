@@ -91,6 +91,20 @@ void TestParseRt024RuntimeArgsRejectsMissingValues() {
   Expect(thrown, "missing flag value should fail");
 }
 
+void TestParseRt024RuntimeArgsRejectsFlagShapedValues() {
+  const char* argv[] = {"rt024_tool",    "--dataset_root", "/tmp/dataset",
+                        "--config_path", "--debug"};
+  bool thrown = false;
+  try {
+    static_cast<void>(vc::ParseRt024RuntimeArgs(5, argv));
+  } catch (const vc::UsageError& error) {
+    const std::string message = error.what();
+    thrown = message.find("--config_path") != std::string::npos &&
+             message.find("missing value") != std::string::npos;
+  }
+  Expect(thrown, "flag-shaped values should be rejected");
+}
+
 }  // namespace
 
 int main() {
@@ -100,5 +114,6 @@ int main() {
   TestParseRt024RuntimeArgsRejectsGoldenRootWithoutDebug();
   TestParseRt024RuntimeArgsRejectsUnknownArgs();
   TestParseRt024RuntimeArgsRejectsMissingValues();
+  TestParseRt024RuntimeArgsRejectsFlagShapedValues();
   return 0;
 }
