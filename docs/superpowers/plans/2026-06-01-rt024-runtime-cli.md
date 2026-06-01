@@ -923,7 +923,7 @@ Expected:
 Expected:
 
 ```text
-打印 `pipeline completed`
+打印 `verification skipped (debug disabled)`
 ```
 
 debug 模式：
