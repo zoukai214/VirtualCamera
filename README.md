@@ -223,15 +223,16 @@ verification passed
 当前分支本次回归中，以下命令已验证通过：
 
 ```bash
+./build/test_runtime_args
+./build/test_rt024_runtime
 ./build/test_parallel_executor
-./build/test_pipeline_runner
-./build/test_undistort_processor
-./build/test_virtual_camera_processor
+./build/test_jobs
 ./build/test_pipeline_config
-./build/test_rt024_json_writer
 ./build/test_rt024_verifier
 ./build/virtual_camera_tool \
   --dataset_root /workspace/GACRT024_1754812994 \
   --config_path configs/config_rt024_parallel_run.json \
-  --output_root build/rt024_output_parallel_run
+  --output_root build/rt024_output_parallel_run \
+  --debug \
+  --golden_root /workspace/GACRT024_1754812994
 ```
