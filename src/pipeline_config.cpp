@@ -46,10 +46,6 @@ PipelineConfig LoadPipelineConfig(const std::string& config_path) {
   const auto json = ReadJson(config_path);
 
   PipelineConfig cfg;
-  cfg.dataset_root = Required<std::string>(json, "dataset_root");
-  cfg.golden_root = json.value("golden_root", cfg.dataset_root);
-  cfg.output_root = json.value("output_root", cfg.dataset_root);
-  cfg.paths.dataset_root = cfg.dataset_root;
   cfg.paths.conf_dir_path = Required<std::string>(json, "conf_dir_path");
   cfg.paths.image_dir_path = Required<std::string>(json, "image_dir_path");
   cfg.paths.vc_image_dir_path = Required<std::string>(json, "vc_image_dir_path");

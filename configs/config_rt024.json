@@ -1,7 +1,4 @@
 {
-    "dataset_root": "/workspace/GACRT024_1754812994",
-    "golden_root": "/workspace/GACRT024_1754812994",
-    "output_root": "build/rt024_output",
     "conf_dir_path": "calib_extract/",
     "image_dir_path": "image_raw/",
     "vc_image_dir_path": "image_virtual_camera/",

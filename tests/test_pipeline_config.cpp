@@ -23,9 +23,6 @@ void TestLoadPipelineConfigSuccess() {
   std::filesystem::create_directories(root);
   const std::string path = root + "/config.json";
   WriteText(path, R"json({
-    "dataset_root": "/workspace/GACRT024_1754812994",
-    "golden_root": "/workspace/GACRT024_1754812994",
-    "output_root": "build/rt024_output",
     "conf_dir_path": "calib_extract/",
     "image_dir_path": "image_raw/",
     "vc_image_dir_path": "image_virtual_camera/",
@@ -99,9 +96,8 @@ void TestLoadPipelineConfigSuccess() {
   })json");
 
   const vc::PipelineConfig config = vc::LoadPipelineConfig(path);
-  Expect(config.dataset_root == "/workspace/GACRT024_1754812994", "dataset_root");
-  Expect(config.golden_root == "/workspace/GACRT024_1754812994", "golden_root");
-  Expect(config.output_root == "build/rt024_output", "output_root");
+  Expect(config.dataset_root.empty(), "dataset_root should be empty");
+  Expect(config.output_root.empty(), "output_root should be empty");
   Expect(config.virtual_tasks.size() == 1, "virtual task count");
   Expect(config.undistort_tasks.size() == 1, "undistort task count");
   Expect(config.task_parallelism == 2, "task_parallelism");
@@ -121,7 +117,6 @@ void TestLoadPipelineConfigMissingField() {
   std::filesystem::create_directories(root);
   const std::string path = root + "/config.json";
   WriteText(path, R"json({
-    "dataset_root": "/workspace/GACRT024_1754812994",
     "virtual_camera_configs": [],
     "undistort_configs": []
   })json");
@@ -140,9 +135,6 @@ void TestLoadPipelineConfigParallelismDefaults() {
   std::filesystem::create_directories(root);
   const std::string path = root + "/config.json";
   WriteText(path, R"json({
-    "dataset_root": "/workspace/GACRT024_1754812994",
-    "golden_root": "/workspace/GACRT024_1754812994",
-    "output_root": "build/rt024_output",
     "conf_dir_path": "calib_extract/",
     "image_dir_path": "image_raw/",
     "vc_image_dir_path": "image_virtual_camera/",
