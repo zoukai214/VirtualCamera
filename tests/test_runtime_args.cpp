@@ -91,6 +91,30 @@ void TestParseRt024RuntimeArgsRejectsMissingValues() {
   Expect(thrown, "missing flag value should fail");
 }
 
+void TestParseRt024RuntimeArgsRequiresDatasetRootFlag() {
+  const char* argv[] = {"rt024_tool", "--config_path", "/tmp/config.json"};
+  bool thrown = false;
+  try {
+    static_cast<void>(vc::ParseRt024RuntimeArgs(3, argv));
+  } catch (const vc::UsageError& error) {
+    thrown = std::string(error.what()).find("--dataset_root") !=
+             std::string::npos;
+  }
+  Expect(thrown, "missing dataset_root flag should fail");
+}
+
+void TestParseRt024RuntimeArgsRequiresConfigPathFlag() {
+  const char* argv[] = {"rt024_tool", "--dataset_root", "/tmp/dataset"};
+  bool thrown = false;
+  try {
+    static_cast<void>(vc::ParseRt024RuntimeArgs(3, argv));
+  } catch (const vc::UsageError& error) {
+    thrown = std::string(error.what()).find("--config_path") !=
+             std::string::npos;
+  }
+  Expect(thrown, "missing config_path flag should fail");
+}
+
 void TestParseRt024RuntimeArgsRejectsFlagShapedValues() {
   const char* argv[] = {"rt024_tool",    "--dataset_root", "/tmp/dataset",
                         "--config_path", "--debug"};
@@ -114,6 +138,8 @@ int main() {
   TestParseRt024RuntimeArgsRejectsGoldenRootWithoutDebug();
   TestParseRt024RuntimeArgsRejectsUnknownArgs();
   TestParseRt024RuntimeArgsRejectsMissingValues();
+  TestParseRt024RuntimeArgsRequiresDatasetRootFlag();
+  TestParseRt024RuntimeArgsRequiresConfigPathFlag();
   TestParseRt024RuntimeArgsRejectsFlagShapedValues();
   return 0;
 }
