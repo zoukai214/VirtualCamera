@@ -29,10 +29,9 @@ void LogInfo(bool enabled, const std::string& message) {
 
 std::string BuildRt024PipelineStartMessage(const Rt024RuntimeArgs& args,
                                            const PipelineConfig& config) {
-  static_cast<void>(config);
   std::ostringstream stream;
   stream << "pipeline start: dataset=" << args.dataset_root
-         << " config=" << args.config_path << " output=" << args.output_root
+         << " config=" << args.config_path << " output=" << config.output_root
          << " debug=" << BoolText(args.debug);
   return stream.str();
 }

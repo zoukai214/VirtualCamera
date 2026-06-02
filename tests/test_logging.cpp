@@ -48,10 +48,11 @@ void TestBuildRt024PipelineStartMessageIncludesRuntimeRoots() {
   vc::Rt024RuntimeArgs args;
   args.dataset_root = "/tmp/dataset";
   args.config_path = "configs/config_rt024_parallel_run.json";
-  args.output_root = "/tmp/output";
+  args.output_root = "/tmp/args-output";
   args.debug = true;
 
   vc::PipelineConfig config;
+  config.output_root = "/tmp/output";
 
   const std::string message =
       vc::BuildRt024PipelineStartMessage(args, config);
