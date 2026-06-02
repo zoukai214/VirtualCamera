@@ -3,11 +3,14 @@
 #include "virtual_camera/pipeline_config.h"
 #include "virtual_camera/runtime_args.h"
 
+#include <algorithm>
 #include <functional>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
+#include <vector>
 
 namespace {
 
@@ -28,6 +31,16 @@ std::string CaptureStdout(const std::function<void()>& callback) {
   }
   std::cout.rdbuf(original);
   return stream.str();
+}
+
+std::vector<std::string> SplitLines(const std::string& text) {
+  std::vector<std::string> lines;
+  std::istringstream stream(text);
+  std::string line;
+  while (std::getline(stream, line)) {
+    lines.push_back(line);
+  }
+  return lines;
 }
 
 void TestLogInfoPrintsSinglePrefixedLine() {
@@ -88,12 +101,74 @@ void TestBuildVirtualTaskStartMessageIncludesTaskIdentity() {
          "message should contain calib json");
 }
 
+void TestBuildUndistortPipelineStartMessageIncludesTaskCountAndParallelism() {
+  vc::PipelineConfig config;
+  config.undistort_parallelism = 3;
+  config.undistort_tasks.resize(2);
+
+  const std::string message = vc::BuildUndistortPipelineStartMessage(config);
+  Expect(message == "undistort start: tasks=2 parallelism=3",
+         "undistort start message should match expected format");
+}
+
+void TestBuildUndistortPipelineDoneMessageIncludesElapsedMilliseconds() {
+  const std::string message = vc::BuildUndistortPipelineDoneMessage(42);
+  Expect(message == "undistort done: elapsed_ms=42",
+         "undistort done message should match expected format");
+}
+
+void TestBuildVirtualTaskDoneMessageIncludesTaskIdentityAndElapsedMilliseconds() {
+  vc::VirtualCameraTaskConfig task;
+  task.file_prefix = "fw110";
+  task.save_dir = "front_wide_110/";
+
+  const std::string message = vc::BuildVirtualTaskDoneMessage(task, 15);
+  Expect(
+      message ==
+          "virtual task done: prefix=fw110 save_dir=front_wide_110/ elapsed_ms=15",
+      "virtual task done message should match expected format");
+}
+
+void TestLogInfoKeepsConcurrentLinesIntact() {
+  const std::vector<std::string> messages = {
+      "thread-0 message", "thread-1 message", "thread-2 message",
+      "thread-3 message"};
+  const std::string output = CaptureStdout([&messages]() {
+    std::vector<std::thread> threads;
+    threads.reserve(messages.size());
+    for (const std::string& message : messages) {
+      threads.emplace_back([message]() { vc::LogInfo(true, message); });
+    }
+    for (std::thread& thread : threads) {
+      thread.join();
+    }
+  });
+
+  std::vector<std::string> lines = SplitLines(output);
+  Expect(lines.size() == messages.size(),
+         "concurrent LogInfo should produce one complete line per message");
+
+  std::vector<std::string> expected_lines;
+  expected_lines.reserve(messages.size());
+  for (const std::string& message : messages) {
+    expected_lines.push_back("[INFO] " + message);
+  }
+  std::sort(lines.begin(), lines.end());
+  std::sort(expected_lines.begin(), expected_lines.end());
+  Expect(lines == expected_lines,
+         "concurrent LogInfo output should contain intact expected lines");
+}
+
 }  // namespace
 
 int main() {
   TestLogInfoPrintsSinglePrefixedLine();
   TestLogInfoSkipsDisabledMessages();
+  TestLogInfoKeepsConcurrentLinesIntact();
   TestBuildRt024PipelineStartMessageIncludesRuntimeRoots();
+  TestBuildUndistortPipelineStartMessageIncludesTaskCountAndParallelism();
+  TestBuildUndistortPipelineDoneMessageIncludesElapsedMilliseconds();
   TestBuildVirtualTaskStartMessageIncludesTaskIdentity();
+  TestBuildVirtualTaskDoneMessageIncludesTaskIdentityAndElapsedMilliseconds();
   return 0;
 }
