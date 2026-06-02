@@ -1,4 +1,5 @@
 #include "virtual_camera/pipeline_config.h"
+#include "virtual_camera/logging.h"
 #include "virtual_camera/pipeline_runner.h"
 #include "virtual_camera/runtime_args.h"
 #include "virtual_camera/undistort_processor.h"
@@ -13,6 +14,8 @@ int main(int argc, char** argv) {
     const vc::Rt024RuntimeArgs args = vc::ParseRt024RuntimeArgs(argc, argv);
     vc::PipelineConfig config = vc::LoadPipelineConfig(args.config_path);
     vc::ApplyRt024RuntimeArgs(args, &config);
+    vc::LogInfo(config.showinfo != 0,
+                vc::BuildRt024PipelineStartMessage(args, config));
 
     vc::RunTopLevelPipelines(
         config,

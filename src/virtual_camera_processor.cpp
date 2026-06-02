@@ -4,6 +4,7 @@
 #include "virtual_camera/jobs.h"
 #include "virtual_camera/json_utils.h"
 #include "virtual_camera/json_writer.h"
+#include "virtual_camera/logging.h"
 #include "virtual_camera/map_generator.h"
 #include "virtual_camera/remap_generator.h"
 
@@ -11,6 +12,7 @@
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <fstream>
@@ -78,6 +80,9 @@ VirtualParam BuildVirtualParam(const VirtualCameraTaskConfig& task,
 
 void RunVirtualCameraTask(const PipelineConfig& config,
                           const VirtualCameraTaskConfig& task) {
+  const auto start_time = std::chrono::steady_clock::now();
+  LogInfo(config.showinfo != 0, BuildVirtualTaskStartMessage(task));
+
   CalibrationParam calibration = LoadVirtualSourceCalibration(config, task);
   const VirtualCameraMaps maps =
       GenerateVirtualCameraMaps(calibration, task, config.distort_model);
@@ -116,6 +121,9 @@ void RunVirtualCameraTask(const PipelineConfig& config,
                                (output_dir / output_name).string());
     }
   }
+
+  LogInfo(config.showinfo != 0,
+          BuildVirtualTaskDoneMessage(task, ElapsedMilliseconds(start_time)));
 }
 
 void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
@@ -157,10 +165,16 @@ void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
 }  // namespace
 
 void RunVirtualCameraPipeline(const PipelineConfig& config) {
+  const auto start_time = std::chrono::steady_clock::now();
+  LogInfo(config.showinfo != 0, BuildVirtualCameraPipelineStartMessage(config));
+
   if (config.virtual_camera_parallelism <= 1) {
     for (const auto& task : config.virtual_tasks) {
       RunVirtualCameraTask(config, task);
     }
+    LogInfo(config.showinfo != 0,
+            BuildVirtualCameraPipelineDoneMessage(
+                ElapsedMilliseconds(start_time)));
     return;
   }
 
@@ -172,6 +186,9 @@ void RunVirtualCameraPipeline(const PipelineConfig& config) {
     jobs.push_back([&config, task]() { RunVirtualCameraTask(config, task); });
   }
   RunJobs(jobs, config.virtual_camera_parallelism);
+  LogInfo(config.showinfo != 0,
+          BuildVirtualCameraPipelineDoneMessage(
+              ElapsedMilliseconds(start_time)));
 }
 
 }  // namespace vc

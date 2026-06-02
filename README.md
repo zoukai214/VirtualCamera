@@ -183,6 +183,15 @@ build/rt024_output_parallel_run
 - 再逐步升到 `2,2,2`
 - 不建议第一次直接设置过大，避免磁盘 IO 成为新瓶颈
 
+## 运行日志
+
+`showinfo` 控制 RT024 运行日志：
+
+- `showinfo = 1`：打印流水线和任务级日志
+- `showinfo = 0`：只在结束或报错时打印
+
+当前并行配置 `configs/config_rt024_parallel_run.json` 默认启用 `showinfo = 1`。
+
 ## 输出内容
 
 程序会在 `output_root` 下生成：

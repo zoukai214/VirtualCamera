@@ -2,6 +2,9 @@
 #include "virtual_camera/virtual_camera_processor.h"
 
 #include <filesystem>
+#include <functional>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -35,6 +38,10 @@ vc::NewIntrinsicConfig MakeNewIntrinsic(double fov, int image_width,
   return new_intrinsic;
 }
 
+vc::NewIntrinsicConfig MakeSmallNewIntrinsic() {
+  return MakeNewIntrinsic(110.0, 16, 8, 8.0);
+}
+
 vc::PipelineConfig MakeBaseConfig(const std::filesystem::path& output_root) {
   vc::PipelineConfig config;
   config.dataset_root = "/workspace/GACRT024_1754812994";
@@ -49,6 +56,54 @@ vc::PipelineConfig MakeBaseConfig(const std::filesystem::path& output_root) {
   config.showinfo = 0;
   config.process_virtual_camera = 1;
   return config;
+}
+
+std::filesystem::path FindFirstFile(const std::filesystem::path& dir) {
+  for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+    if (entry.is_regular_file()) {
+      return entry.path();
+    }
+  }
+  throw std::runtime_error("no source file found in " + dir.string());
+}
+
+vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
+  const std::filesystem::path dataset_root = root / "dataset";
+  const std::filesystem::path conf_dir = dataset_root / "calib_extract";
+  const std::filesystem::path image_dir = dataset_root / "image_raw" / "front_wide";
+  std::filesystem::create_directories(conf_dir);
+  std::filesystem::create_directories(image_dir);
+
+  const std::filesystem::path source_dataset = "/workspace/GACRT024_1754812994";
+  const std::filesystem::path source_conf =
+      source_dataset / "calib_extract" / "calib_camera_front_wide_to_car.json";
+  const std::filesystem::path source_image =
+      FindFirstFile(source_dataset / "image_raw" / "front_wide");
+
+  std::filesystem::copy_file(
+      source_conf, conf_dir / "calib_camera_front_wide_to_car.json",
+      std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::copy_file(
+      source_image, image_dir / source_image.filename(),
+      std::filesystem::copy_options::overwrite_existing);
+
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.dataset_root = dataset_root.string();
+  config.paths.dataset_root = config.dataset_root;
+  return config;
+}
+
+std::string CaptureStdout(const std::function<void()>& fn) {
+  std::ostringstream capture;
+  std::streambuf* const original = std::cout.rdbuf(capture.rdbuf());
+  try {
+    fn();
+  } catch (...) {
+    std::cout.rdbuf(original);
+    throw;
+  }
+  std::cout.rdbuf(original);
+  return capture.str();
 }
 
 vc::VirtualCameraTaskConfig MakeValidTask() {
@@ -327,6 +382,62 @@ void TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs() {
          "duplicate map validation should not create map outputs");
 }
 
+void TestRunVirtualCameraPipelinePrintsTaskLogsWhenShowinfoEnabled() {
+  const std::filesystem::path root = MakeTestRoot("logging_enabled");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  config.showinfo = 1;
+  config.virtual_camera_parallelism = 2;
+  vc::VirtualCameraTaskConfig task = MakeValidTask();
+  task.new_intrinsic = MakeSmallNewIntrinsic();
+  config.virtual_tasks.push_back(task);
+
+  const std::string output = CaptureStdout([&config]() {
+    vc::RunVirtualCameraPipeline(config);
+  });
+
+  const std::size_t pipeline_start =
+      output.find("[INFO] virtual_camera start: tasks=1 parallelism=2\n");
+  const std::size_t task_start = output.find(
+      "[INFO] virtual task start: prefix=fw110 save_dir=front_wide_110/ "
+      "calib=calib_cam_front_wide_fov110.json\n");
+  const std::size_t task_done = output.find(
+      "[INFO] virtual task done: prefix=fw110 save_dir=front_wide_110/ "
+      "elapsed_ms=");
+  const std::size_t pipeline_done =
+      output.find("[INFO] virtual_camera done: elapsed_ms=");
+
+  Expect(pipeline_start != std::string::npos,
+         "showinfo should print virtual pipeline start log");
+  Expect(task_start != std::string::npos,
+         "showinfo should print virtual task start log");
+  Expect(task_done != std::string::npos,
+         "showinfo should print virtual task done log");
+  Expect(pipeline_done != std::string::npos,
+         "showinfo should print virtual pipeline done log");
+  Expect(pipeline_start < task_start,
+         "pipeline start log should appear before task start log");
+  Expect(task_start < task_done,
+         "task start log should appear before task done log");
+  Expect(task_done < pipeline_done,
+         "task done log should appear before pipeline done log");
+}
+
+void TestRunVirtualCameraPipelineSkipsTaskLogsWhenShowinfoDisabled() {
+  const std::filesystem::path root = MakeTestRoot("logging_disabled");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  config.showinfo = 0;
+  config.virtual_camera_parallelism = 2;
+  vc::VirtualCameraTaskConfig task = MakeValidTask();
+  task.new_intrinsic = MakeSmallNewIntrinsic();
+  config.virtual_tasks.push_back(task);
+
+  const std::string output = CaptureStdout([&config]() {
+    vc::RunVirtualCameraPipeline(config);
+  });
+
+  Expect(output.empty(), "disabled showinfo should not print virtual logs");
+}
+
 void TestRunVirtualCameraPipelineWritesOutputsForRealDataset() {
   const std::filesystem::path root = MakeTestRoot("real_dataset");
   vc::PipelineConfig config = MakeBaseConfig(root);
@@ -353,6 +464,8 @@ int main() {
   TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes();
   TestRunVirtualCameraPipelineRejectsCrossTypeNormalizedAlias();
   TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs();
+  TestRunVirtualCameraPipelinePrintsTaskLogsWhenShowinfoEnabled();
+  TestRunVirtualCameraPipelineSkipsTaskLogsWhenShowinfoDisabled();
   TestRunVirtualCameraPipelineWritesOutputsForRealDataset();
   return 0;
 }
