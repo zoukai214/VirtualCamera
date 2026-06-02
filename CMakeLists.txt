@@ -154,6 +154,11 @@ if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_rt024_runtime.cpp)
     target_link_libraries(test_rt024_runtime PRIVATE virtual_camera_core)
 endif()
 
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_image_virtual_script.cpp)
+    add_executable(test_image_virtual_script tests/test_image_virtual_script.cpp)
+    target_link_libraries(test_image_virtual_script PRIVATE virtual_camera_core)
+endif()
+
 set(RECTIFY_PACKAGE_OUTPUT_X86_LIB_DIR output/x86/lib)
 
 if(TARGET virtual_camera_tool)

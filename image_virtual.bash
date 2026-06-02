@@ -2,6 +2,11 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
+tool_path="${script_dir}/virtual_camera_tool"
+
+if [[ ! -x "${tool_path}" ]]; then
+  tool_path="${script_dir}/build/virtual_camera_tool"
+fi
 
 dataset_root=""
 config_path=""
@@ -86,7 +91,7 @@ if [[ "${debug}" == false && -n "${golden_root}" ]]; then
 fi
 
 cmd=(
-  "${script_dir}/virtual_camera_tool"
+  "${tool_path}"
   --dataset_root "${dataset_root}"
   --config_path "${config_path}"
   --output_root "${output_root}"
