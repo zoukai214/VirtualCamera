@@ -3,8 +3,14 @@
 #include "virtual_camera/pipeline_config.h"
 #include "virtual_camera/runtime_args.h"
 
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <algorithm>
+#include <cstdio>
+#include <filesystem>
 #include <functional>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -19,6 +25,68 @@ void Expect(bool condition, const std::string& message) {
     throw std::runtime_error(message);
   }
 }
+
+class StdoutFdRedirect {
+ public:
+  StdoutFdRedirect() {
+    std::filesystem::create_directories("build/test_tmp");
+    path_ = "build/test_tmp/logging_flush_XXXXXX";
+    temp_fd_ = mkstemp(path_.data());
+    if (temp_fd_ < 0) {
+      throw std::runtime_error("failed to create temp file");
+    }
+    saved_stdout_fd_ = dup(STDOUT_FILENO);
+    if (saved_stdout_fd_ < 0) {
+      const int temp_fd = temp_fd_;
+      close(temp_fd);
+      throw std::runtime_error("failed to duplicate stdout");
+    }
+    std::fflush(stdout);
+    std::cout.flush();
+    if (dup2(temp_fd_, STDOUT_FILENO) < 0) {
+      const int saved_stdout_fd = saved_stdout_fd_;
+      const int temp_fd = temp_fd_;
+      close(saved_stdout_fd);
+      close(temp_fd);
+      throw std::runtime_error("failed to redirect stdout");
+    }
+  }
+
+  ~StdoutFdRedirect() {
+    Restore();
+    if (temp_fd_ >= 0) {
+      close(temp_fd_);
+    }
+    if (!path_.empty()) {
+      std::filesystem::remove(path_);
+    }
+  }
+
+  StdoutFdRedirect(const StdoutFdRedirect&) = delete;
+  StdoutFdRedirect& operator=(const StdoutFdRedirect&) = delete;
+
+  std::string ReadContents() const {
+    std::ifstream input(path_);
+    return std::string((std::istreambuf_iterator<char>(input)),
+                       std::istreambuf_iterator<char>());
+  }
+
+ private:
+  void Restore() {
+    if (saved_stdout_fd_ < 0) {
+      return;
+    }
+    std::fflush(stdout);
+    std::cout.flush();
+    dup2(saved_stdout_fd_, STDOUT_FILENO);
+    close(saved_stdout_fd_);
+    saved_stdout_fd_ = -1;
+  }
+
+  int saved_stdout_fd_ = -1;
+  int temp_fd_ = -1;
+  std::string path_;
+};
 
 std::string CaptureStdout(const std::function<void()>& callback) {
   std::ostringstream stream;
@@ -55,6 +123,16 @@ void TestLogInfoSkipsDisabledMessages() {
   const std::string output =
       CaptureStdout([]() { vc::LogInfo(false, "should not print"); });
   Expect(output.empty(), "LogInfo should skip disabled messages");
+}
+
+void TestLogInfoFlushesToRealStdoutSinkBeforeProcessExit() {
+  StdoutFdRedirect redirect;
+
+  vc::LogInfo(true, "flush regression");
+
+  const std::string output = redirect.ReadContents();
+  Expect(output == "[INFO] flush regression\n",
+         "LogInfo should flush to a real stdout sink immediately");
 }
 
 void TestBuildRt024PipelineStartMessageIncludesRuntimeRoots() {
@@ -164,6 +242,7 @@ void TestLogInfoKeepsConcurrentLinesIntact() {
 int main() {
   TestLogInfoPrintsSinglePrefixedLine();
   TestLogInfoSkipsDisabledMessages();
+  TestLogInfoFlushesToRealStdoutSinkBeforeProcessExit();
   TestLogInfoKeepsConcurrentLinesIntact();
   TestBuildRt024PipelineStartMessageIncludesRuntimeRoots();
   TestBuildUndistortPipelineStartMessageIncludesTaskCountAndParallelism();

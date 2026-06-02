@@ -5,6 +5,7 @@
 #include <opencv2/imgcodecs.hpp>
 
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <iostream>
 #include <sstream>
@@ -85,6 +86,53 @@ void WriteTinySyntheticImage(const std::filesystem::path& path) {
   }
 }
 
+void WriteTinyCalibrationJson(const std::filesystem::path& path) {
+  std::ofstream output(path);
+  if (!output.is_open()) {
+    throw std::runtime_error("failed to write calibration json: " + path.string());
+  }
+  output << R"json({
+  "camera-front-wide": {
+    "param": {
+      "cam_matrix": {
+        "data": [
+          [1909.0533447265625, 0, 1902.6021728515625],
+          [0, 1909.345458984375, 1088.849609375],
+          [0, 0, 1]
+        ]
+      },
+      "cam_dist": {
+        "data": [[
+          0.27403417229652405,
+          -0.018113205209374428,
+          -2.64449499809416e-05,
+          1.5385621736641042e-05,
+          0.0010280556743964553,
+          0.6341700553894043,
+          0,
+          0
+        ]]
+      },
+      "width": 3840,
+      "height": 2160
+    }
+  },
+  "camera-front-wide-to-car": {
+    "param": {
+      "sensor_calib": {
+        "data": [
+          [-0.010597652684796122, -0.010371027993724968, 0.9998900597245306, 1.9657248981983317],
+          [-0.9999331002492209, 0.004745092656345318, -0.010548891963789553, -0.061965364385173805],
+          [-0.00463516812569198, -0.9999349608219705, -0.010420621018465637, 1.5531924098970122],
+          [0, 0, 0, 1]
+        ]
+      }
+    }
+  }
+}
+)json";
+}
+
 vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
   const std::filesystem::path dataset_root = root / "dataset";
   const std::filesystem::path conf_dir = dataset_root / "calib_extract";
@@ -92,13 +140,7 @@ vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
   std::filesystem::create_directories(conf_dir);
   std::filesystem::create_directories(image_dir);
 
-  const std::filesystem::path source_dataset = "/workspace/GACRT024_1754812994";
-  const std::filesystem::path source_conf =
-      source_dataset / "calib_extract" / "calib_camera_front_wide_to_car.json";
-
-  std::filesystem::copy_file(
-      source_conf, conf_dir / "calib_camera_front_wide_to_car.json",
-      std::filesystem::copy_options::overwrite_existing);
+  WriteTinyCalibrationJson(conf_dir / "calib_camera_front_wide_to_car.json");
   WriteTinySyntheticImage(image_dir / "synthetic_front_wide.jpg");
 
   vc::PipelineConfig config = MakeBaseConfig(root);
