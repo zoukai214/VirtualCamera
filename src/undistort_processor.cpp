@@ -4,12 +4,14 @@
 #include "virtual_camera/jobs.h"
 #include "virtual_camera/json_utils.h"
 #include "virtual_camera/json_writer.h"
+#include "virtual_camera/logging.h"
 #include "virtual_camera/remap_generator.h"
 
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <filesystem>
 #include <functional>
 #include <stdexcept>
@@ -39,6 +41,9 @@ CalibrationParam LoadUndistortSourceCalibration(const PipelineConfig& config,
 }
 
 void RunUndistortTask(const PipelineConfig& config, const UndistortTaskConfig& task) {
+  const auto start_time = std::chrono::steady_clock::now();
+  LogInfo(config.showinfo != 0, BuildUndistortTaskStartMessage(task));
+
   CalibrationParam calibration = LoadUndistortSourceCalibration(config, task);
   const UndistortMaps maps =
       GenerateUndistortMaps(calibration, task.new_intrinsic, config.distort_model);
@@ -66,6 +71,9 @@ void RunUndistortTask(const PipelineConfig& config, const UndistortTaskConfig& t
                                (output_dir / path.filename()).string());
     }
   }
+
+  LogInfo(config.showinfo != 0,
+          BuildUndistortTaskDoneMessage(task, ElapsedMilliseconds(start_time)));
 }
 
 void ValidateUndistortOutputs(const PipelineConfig& config) {
@@ -94,10 +102,15 @@ void ValidateUndistortOutputs(const PipelineConfig& config) {
 }  // namespace
 
 void RunUndistortPipeline(const PipelineConfig& config) {
+  const auto start_time = std::chrono::steady_clock::now();
+  LogInfo(config.showinfo != 0, BuildUndistortPipelineStartMessage(config));
+
   if (config.undistort_parallelism <= 1) {
     for (const auto& task : config.undistort_tasks) {
       RunUndistortTask(config, task);
     }
+    LogInfo(config.showinfo != 0,
+            BuildUndistortPipelineDoneMessage(ElapsedMilliseconds(start_time)));
     return;
   }
 
@@ -109,6 +122,8 @@ void RunUndistortPipeline(const PipelineConfig& config) {
     jobs.push_back([&config, task]() { RunUndistortTask(config, task); });
   }
   RunJobs(jobs, config.undistort_parallelism);
+  LogInfo(config.showinfo != 0,
+          BuildUndistortPipelineDoneMessage(ElapsedMilliseconds(start_time)));
 }
 
 }  // namespace vc

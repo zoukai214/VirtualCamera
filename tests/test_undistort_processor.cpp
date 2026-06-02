@@ -2,6 +2,9 @@
 #include "virtual_camera/undistort_processor.h"
 
 #include <filesystem>
+#include <functional>
+#include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -57,6 +60,19 @@ vc::UndistortTaskConfig MakeTask(const std::string& conf_json,
   task.image_dir = image_dir;
   task.new_intrinsic = MakeNewIntrinsic();
   return task;
+}
+
+std::string CaptureStdout(const std::function<void()>& fn) {
+  std::ostringstream capture;
+  std::streambuf* const original = std::cout.rdbuf(capture.rdbuf());
+  try {
+    fn();
+  } catch (...) {
+    std::cout.rdbuf(original);
+    throw;
+  }
+  std::cout.rdbuf(original);
+  return capture.str();
 }
 
 void TestRunUndistortPipelineSerialStopsAfterFirstFailure() {
@@ -140,6 +156,48 @@ void TestRunUndistortPipelineWritesOutputsForRealDataset() {
          "undistort image dir should exist");
 }
 
+void TestRunUndistortPipelinePrintsTaskLogsWhenShowinfoEnabled() {
+  const std::filesystem::path root = MakeTestRoot("logging_enabled");
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.showinfo = 1;
+  config.undistort_parallelism = 2;
+  config.undistort_tasks.push_back(
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/"));
+
+  const std::string output = CaptureStdout([&config]() {
+    vc::RunUndistortPipeline(config);
+  });
+
+  Expect(output.find("[INFO] undistort start: tasks=1 parallelism=2\n") !=
+             std::string::npos,
+         "showinfo should print undistort pipeline start log");
+  Expect(output.find("[INFO] undistort task start: image_dir=front_wide/ "
+                     "calib=calib_camera_front_wide_to_car.json\n") !=
+             std::string::npos,
+         "showinfo should print undistort task start log");
+  Expect(output.find("[INFO] undistort task done: image_dir=front_wide/ "
+                     "elapsed_ms=") != std::string::npos,
+         "showinfo should print undistort task done log");
+  Expect(output.find("[INFO] undistort done: elapsed_ms=") !=
+             std::string::npos,
+         "showinfo should print undistort pipeline done log");
+}
+
+void TestRunUndistortPipelineSkipsTaskLogsWhenShowinfoDisabled() {
+  const std::filesystem::path root = MakeTestRoot("logging_disabled");
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.showinfo = 0;
+  config.undistort_parallelism = 2;
+  config.undistort_tasks.push_back(
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/"));
+
+  const std::string output = CaptureStdout([&config]() {
+    vc::RunUndistortPipeline(config);
+  });
+
+  Expect(output.empty(), "disabled showinfo should not print undistort logs");
+}
+
 }  // namespace
 
 int main() {
@@ -147,5 +205,7 @@ int main() {
   TestRunUndistortPipelineRejectsDuplicateJsonOutputs();
   TestRunUndistortPipelineRejectsDuplicateImageOutputs();
   TestRunUndistortPipelineWritesOutputsForRealDataset();
+  TestRunUndistortPipelinePrintsTaskLogsWhenShowinfoEnabled();
+  TestRunUndistortPipelineSkipsTaskLogsWhenShowinfoDisabled();
   return 0;
 }
