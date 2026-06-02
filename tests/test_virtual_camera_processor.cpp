@@ -1,6 +1,9 @@
 #include "virtual_camera/pipeline_config.h"
 #include "virtual_camera/virtual_camera_processor.h"
 
+#include <opencv2/core.hpp>
+#include <opencv2/imgcodecs.hpp>
+
 #include <filesystem>
 #include <functional>
 #include <iostream>
@@ -39,7 +42,16 @@ vc::NewIntrinsicConfig MakeNewIntrinsic(double fov, int image_width,
 }
 
 vc::NewIntrinsicConfig MakeSmallNewIntrinsic() {
-  return MakeNewIntrinsic(110.0, 16, 8, 8.0);
+  vc::NewIntrinsicConfig new_intrinsic;
+  new_intrinsic.fov = 110.0;
+  new_intrinsic.focal_u = 8.0;
+  new_intrinsic.center_u = 8.0;
+  new_intrinsic.focal_v = 8.0;
+  new_intrinsic.center_v = 4.0;
+  new_intrinsic.image_width = 16;
+  new_intrinsic.image_height = 8;
+  new_intrinsic.center = 1;
+  return new_intrinsic;
 }
 
 vc::PipelineConfig MakeBaseConfig(const std::filesystem::path& output_root) {
@@ -58,13 +70,19 @@ vc::PipelineConfig MakeBaseConfig(const std::filesystem::path& output_root) {
   return config;
 }
 
-std::filesystem::path FindFirstFile(const std::filesystem::path& dir) {
-  for (const auto& entry : std::filesystem::directory_iterator(dir)) {
-    if (entry.is_regular_file()) {
-      return entry.path();
+void WriteTinySyntheticImage(const std::filesystem::path& path) {
+  cv::Mat image(8, 16, CV_8UC3, cv::Scalar(0, 0, 0));
+  for (int y = 0; y < image.rows; ++y) {
+    for (int x = 0; x < image.cols; ++x) {
+      image.at<cv::Vec3b>(y, x) = cv::Vec3b(
+          static_cast<unsigned char>(x * 7),
+          static_cast<unsigned char>(y * 13),
+          static_cast<unsigned char>((x + y) * 5));
     }
   }
-  throw std::runtime_error("no source file found in " + dir.string());
+  if (!cv::imwrite(path.string(), image)) {
+    throw std::runtime_error("failed to write synthetic image: " + path.string());
+  }
 }
 
 vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
@@ -77,15 +95,11 @@ vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
   const std::filesystem::path source_dataset = "/workspace/GACRT024_1754812994";
   const std::filesystem::path source_conf =
       source_dataset / "calib_extract" / "calib_camera_front_wide_to_car.json";
-  const std::filesystem::path source_image =
-      FindFirstFile(source_dataset / "image_raw" / "front_wide");
 
   std::filesystem::copy_file(
       source_conf, conf_dir / "calib_camera_front_wide_to_car.json",
       std::filesystem::copy_options::overwrite_existing);
-  std::filesystem::copy_file(
-      source_image, image_dir / source_image.filename(),
-      std::filesystem::copy_options::overwrite_existing);
+  WriteTinySyntheticImage(image_dir / "synthetic_front_wide.jpg");
 
   vc::PipelineConfig config = MakeBaseConfig(root);
   config.dataset_root = dataset_root.string();
@@ -129,6 +143,14 @@ vc::VirtualCameraTaskConfig MakeValidTask() {
   task.new_extrinsics.pitch = 0.0;
   task.new_extrinsics.roll = 0.0;
   task.new_extrinsics.yaw = 0.0;
+  return task;
+}
+
+vc::VirtualCameraTaskConfig MakeSmallLoggingTask() {
+  vc::VirtualCameraTaskConfig task = MakeValidTask();
+  task.image_width = 16;
+  task.image_height = 8;
+  task.new_intrinsic = MakeSmallNewIntrinsic();
   return task;
 }
 
@@ -387,9 +409,7 @@ void TestRunVirtualCameraPipelinePrintsTaskLogsWhenShowinfoEnabled() {
   vc::PipelineConfig config = MakeTinyFixtureConfig(root);
   config.showinfo = 1;
   config.virtual_camera_parallelism = 2;
-  vc::VirtualCameraTaskConfig task = MakeValidTask();
-  task.new_intrinsic = MakeSmallNewIntrinsic();
-  config.virtual_tasks.push_back(task);
+  config.virtual_tasks.push_back(MakeSmallLoggingTask());
 
   const std::string output = CaptureStdout([&config]() {
     vc::RunVirtualCameraPipeline(config);
@@ -427,9 +447,7 @@ void TestRunVirtualCameraPipelineSkipsTaskLogsWhenShowinfoDisabled() {
   vc::PipelineConfig config = MakeTinyFixtureConfig(root);
   config.showinfo = 0;
   config.virtual_camera_parallelism = 2;
-  vc::VirtualCameraTaskConfig task = MakeValidTask();
-  task.new_intrinsic = MakeSmallNewIntrinsic();
-  config.virtual_tasks.push_back(task);
+  config.virtual_tasks.push_back(MakeSmallLoggingTask());
 
   const std::string output = CaptureStdout([&config]() {
     vc::RunVirtualCameraPipeline(config);

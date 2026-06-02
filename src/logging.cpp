@@ -24,7 +24,7 @@ void LogInfo(bool enabled, const std::string& message) {
     return;
   }
   std::lock_guard<std::mutex> lock(LogMutex());
-  std::cout << "[INFO] " << message << "\n";
+  std::cout << "[INFO] " << message << "\n" << std::flush;
 }
 
 std::string BuildRt024PipelineStartMessage(const Rt024RuntimeArgs& args,
