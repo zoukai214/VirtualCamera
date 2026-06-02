@@ -28,6 +28,18 @@ vc::NewIntrinsicConfig MakeNewIntrinsic() {
   return new_intrinsic;
 }
 
+vc::NewIntrinsicConfig MakeSmallNewIntrinsic() {
+  vc::NewIntrinsicConfig new_intrinsic;
+  new_intrinsic.focal_u = 8.0;
+  new_intrinsic.center_u = 8.0;
+  new_intrinsic.focal_v = 8.0;
+  new_intrinsic.center_v = 4.0;
+  new_intrinsic.image_width = 16;
+  new_intrinsic.image_height = 8;
+  new_intrinsic.center = 1;
+  return new_intrinsic;
+}
+
 std::filesystem::path MakeTestRoot(const std::string& name) {
   const std::filesystem::path root =
       std::filesystem::path("build/test_tmp/undistort_processor") / name;
@@ -60,6 +72,41 @@ vc::UndistortTaskConfig MakeTask(const std::string& conf_json,
   task.image_dir = image_dir;
   task.new_intrinsic = MakeNewIntrinsic();
   return task;
+}
+
+std::filesystem::path FindFirstFile(const std::filesystem::path& dir) {
+  for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+    if (entry.is_regular_file()) {
+      return entry.path();
+    }
+  }
+  throw std::runtime_error("no source file found in " + dir.string());
+}
+
+vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
+  const std::filesystem::path dataset_root = root / "dataset";
+  const std::filesystem::path conf_dir = dataset_root / "calib_extract";
+  const std::filesystem::path image_dir = dataset_root / "image_raw" / "front_wide";
+  std::filesystem::create_directories(conf_dir);
+  std::filesystem::create_directories(image_dir);
+
+  const std::filesystem::path source_dataset = "/workspace/GACRT024_1754812994";
+  const std::filesystem::path source_conf =
+      source_dataset / "calib_extract" / "calib_camera_front_wide_to_car.json";
+  const std::filesystem::path source_image =
+      FindFirstFile(source_dataset / "image_raw" / "front_wide");
+
+  std::filesystem::copy_file(
+      source_conf, conf_dir / "calib_camera_front_wide_to_car.json",
+      std::filesystem::copy_options::overwrite_existing);
+  std::filesystem::copy_file(
+      source_image, image_dir / source_image.filename(),
+      std::filesystem::copy_options::overwrite_existing);
+
+  vc::PipelineConfig config = MakeBaseConfig(root);
+  config.dataset_root = dataset_root.string();
+  config.paths.dataset_root = config.dataset_root;
+  return config;
 }
 
 std::string CaptureStdout(const std::function<void()>& fn) {
@@ -158,38 +205,53 @@ void TestRunUndistortPipelineWritesOutputsForRealDataset() {
 
 void TestRunUndistortPipelinePrintsTaskLogsWhenShowinfoEnabled() {
   const std::filesystem::path root = MakeTestRoot("logging_enabled");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
   config.showinfo = 1;
   config.undistort_parallelism = 2;
-  config.undistort_tasks.push_back(
-      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/"));
+  vc::UndistortTaskConfig task =
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/");
+  task.new_intrinsic = MakeSmallNewIntrinsic();
+  config.undistort_tasks.push_back(task);
 
   const std::string output = CaptureStdout([&config]() {
     vc::RunUndistortPipeline(config);
   });
 
-  Expect(output.find("[INFO] undistort start: tasks=1 parallelism=2\n") !=
-             std::string::npos,
+  const std::size_t pipeline_start =
+      output.find("[INFO] undistort start: tasks=1 parallelism=2\n");
+  const std::size_t task_start = output.find(
+      "[INFO] undistort task start: image_dir=front_wide/ "
+      "calib=calib_camera_front_wide_to_car.json\n");
+  const std::size_t task_done = output.find(
+      "[INFO] undistort task done: image_dir=front_wide/ elapsed_ms=");
+  const std::size_t pipeline_done =
+      output.find("[INFO] undistort done: elapsed_ms=");
+
+  Expect(pipeline_start != std::string::npos,
          "showinfo should print undistort pipeline start log");
-  Expect(output.find("[INFO] undistort task start: image_dir=front_wide/ "
-                     "calib=calib_camera_front_wide_to_car.json\n") !=
-             std::string::npos,
+  Expect(task_start != std::string::npos,
          "showinfo should print undistort task start log");
-  Expect(output.find("[INFO] undistort task done: image_dir=front_wide/ "
-                     "elapsed_ms=") != std::string::npos,
+  Expect(task_done != std::string::npos,
          "showinfo should print undistort task done log");
-  Expect(output.find("[INFO] undistort done: elapsed_ms=") !=
-             std::string::npos,
+  Expect(pipeline_done != std::string::npos,
          "showinfo should print undistort pipeline done log");
+  Expect(pipeline_start < task_start,
+         "pipeline start log should appear before task start log");
+  Expect(task_start < task_done,
+         "task start log should appear before task done log");
+  Expect(task_done < pipeline_done,
+         "task done log should appear before pipeline done log");
 }
 
 void TestRunUndistortPipelineSkipsTaskLogsWhenShowinfoDisabled() {
   const std::filesystem::path root = MakeTestRoot("logging_disabled");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
   config.showinfo = 0;
   config.undistort_parallelism = 2;
-  config.undistort_tasks.push_back(
-      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/"));
+  vc::UndistortTaskConfig task =
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/");
+  task.new_intrinsic = MakeSmallNewIntrinsic();
+  config.undistort_tasks.push_back(task);
 
   const std::string output = CaptureStdout([&config]() {
     vc::RunUndistortPipeline(config);
