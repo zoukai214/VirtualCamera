@@ -36,6 +36,12 @@ std::string ReadText(const std::filesystem::path& path) {
                      std::istreambuf_iterator<char>());
 }
 
+void TestImageVirtualScriptAvoidsLiteralBuildPath() {
+  const std::string script = ReadText("image_virtual.bash");
+  Expect(script.find("build/") == std::string::npos,
+         "script should avoid literal build/ path so packaged script stays standalone");
+}
+
 void TestImageVirtualScriptUsesBuildBinaryWhenPresent() {
   const std::filesystem::path root = "build/test_tmp/image_virtual_script";
   std::filesystem::remove_all(root);
@@ -96,6 +102,7 @@ void TestImageVirtualScriptUsesBuildBinaryWhenPresent() {
 }  // namespace
 
 int main() {
+  TestImageVirtualScriptAvoidsLiteralBuildPath();
   TestImageVirtualScriptUsesBuildBinaryWhenPresent();
   return 0;
 }

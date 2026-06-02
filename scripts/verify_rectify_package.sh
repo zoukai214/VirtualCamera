@@ -23,6 +23,32 @@ if grep -q 'build/' "${package_root}/image_virtual.bash"; then
   exit 1
 fi
 
-grep -q '\./virtual_camera_tool \./config.json' "${package_root}/image_virtual.bash"
+tool_backup="${package_root}/virtual_camera_tool.real"
+args_log="${package_root}/tool_args.txt"
+mv "${package_root}/virtual_camera_tool" "${tool_backup}"
+trap 'rm -f "${package_root}/virtual_camera_tool" "${args_log}"; mv "${tool_backup}" "${package_root}/virtual_camera_tool"' EXIT
+
+cat > "${package_root}/virtual_camera_tool" <<EOF
+#!/usr/bin/env bash
+printf '%s\n' "\$@" > "${args_log}"
+EOF
+chmod +x "${package_root}/virtual_camera_tool"
+
+bash "${package_root}/image_virtual.bash" \
+  --dataset_root /tmp/dataset \
+  --config_path ./config.json \
+  --output_root /tmp/output \
+  --debug \
+  --golden_root /tmp/golden
+
+grep -q -- '--dataset_root' "${args_log}"
+grep -q -- '/tmp/dataset' "${args_log}"
+grep -q -- '--config_path' "${args_log}"
+grep -q -- './config.json' "${args_log}"
+grep -q -- '--output_root' "${args_log}"
+grep -q -- '/tmp/output' "${args_log}"
+grep -q -- '--debug' "${args_log}"
+grep -q -- '--golden_root' "${args_log}"
+grep -q -- '/tmp/golden' "${args_log}"
 
 echo "rectify package verification passed"

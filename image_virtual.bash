@@ -3,9 +3,10 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 tool_path="${script_dir}/virtual_camera_tool"
+fallback_dir_name="build"
 
 if [[ ! -x "${tool_path}" ]]; then
-  tool_path="${script_dir}/build/virtual_camera_tool"
+  tool_path="${script_dir}/${fallback_dir_name}/virtual_camera_tool"
 fi
 
 dataset_root=""
