@@ -63,6 +63,7 @@ foreach(source_file
     src/json_writer.cpp
     src/verifier.cpp
     src/runtime_args.cpp
+    src/logging.cpp
 )
     if(EXISTS ${PROJECT_SOURCE_DIR}/${source_file})
         list(APPEND VIRTUAL_CAMERA_CORE_SOURCES ${source_file})
@@ -157,6 +158,11 @@ endif()
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_image_virtual_script.cpp)
     add_executable(test_image_virtual_script tests/test_image_virtual_script.cpp)
     target_link_libraries(test_image_virtual_script PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_logging.cpp)
+    add_executable(test_logging tests/test_logging.cpp)
+    target_link_libraries(test_logging PRIVATE virtual_camera_core)
 endif()
 
 set(RECTIFY_PACKAGE_OUTPUT_X86_LIB_DIR output/x86/lib)
