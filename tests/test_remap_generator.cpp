@@ -107,7 +107,7 @@ void TestGenerateVirtualCameraMapsMatchesFw110GoldenSrcMaps() {
   std::filesystem::remove_all(root / "fw110_exact");
   std::filesystem::create_directories(root / "fw110_exact");
 
-  const vc::CalibrationParam calibration = vc::LoadRt024Calibration(
+  const vc::CalibrationParam calibration = vc::LoadCalibration(
       "/workspace/GACRT024_1754812994/calib_extract",
       "calib_camera_front_wide_to_car.json",
       "camera-front-wide",

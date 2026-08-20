@@ -22,7 +22,7 @@ void Expect(bool condition, const std::string& message) {
   }
 }
 
-void TestVerifyRt024OutputsPass() {
+void TestVerifyOutputsPass() {
   const std::string golden = "build/test_tmp/rt024_verify/golden";
   const std::string actual = "build/test_tmp/rt024_verify/actual";
   WriteText(golden + "/vc_gdcbin_dir_path/a.bin", "abc");
@@ -43,11 +43,11 @@ void TestVerifyRt024OutputsPass() {
             "{\"undistort_setting\":{\"intrinsics\":[[1,0,0],[0,1,0],[0,0,1]],"
             "\"extrinsics\":[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],"
             "\"distort\":[0,0,0,0,0,0,0,0]}}");
-  const auto result = vc::VerifyRt024Outputs(golden, actual);
+  const auto result = vc::VerifyOutputs(golden, actual);
   Expect(result.ok, result.message);
 }
 
-void TestVerifyRt024OutputsFailOnBinDiff() {
+void TestVerifyOutputsFailOnBinDiff() {
   const std::string golden = "build/test_tmp/rt024_verify_diff/golden";
   const std::string actual = "build/test_tmp/rt024_verify_diff/actual";
   WriteText(golden + "/vc_gdcbin_dir_path/a.bin", "abc");
@@ -68,14 +68,14 @@ void TestVerifyRt024OutputsFailOnBinDiff() {
             "{\"undistort_setting\":{\"intrinsics\":[[1,0,0],[0,1,0],[0,0,1]],"
             "\"extrinsics\":[[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]],"
             "\"distort\":[0,0,0,0,0,0,0,0]}}");
-  const auto result = vc::VerifyRt024Outputs(golden, actual);
+  const auto result = vc::VerifyOutputs(golden, actual);
   Expect(!result.ok, "expected diff");
 }
 
 }  // namespace
 
 int main() {
-  TestVerifyRt024OutputsPass();
-  TestVerifyRt024OutputsFailOnBinDiff();
+  TestVerifyOutputsPass();
+  TestVerifyOutputsFailOnBinDiff();
   return 0;
 }

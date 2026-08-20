@@ -43,14 +43,16 @@ int main() {
   vc::WriteJson((root / "golden/calib/virtual/cam/cam-to-car_center-extrinsic.json").string(), golden_extri);
   vc::WriteJson((root / "actual/calib/virtual/cam/cam-to-car_center-extrinsic.json").string(), golden_extri);
 
-  const auto result = vc::VerifyOutputs((root / "golden").string(), (root / "actual").string());
+  const auto result =
+      vc::VerifyGdcOutputs((root / "golden").string(), (root / "actual").string());
   if (!result.ok) {
     std::cerr << result.message << "\n";
     return 1;
   }
 
   WriteFile((root / "actual/calib/gdc/a.bin").string(), "abx");
-  const auto failed = vc::VerifyOutputs((root / "golden").string(), (root / "actual").string());
+  const auto failed =
+      vc::VerifyGdcOutputs((root / "golden").string(), (root / "actual").string());
   if (failed.ok || failed.message.find("byte mismatch") == std::string::npos) {
     std::cerr << "expected byte mismatch failure\n";
     return 1;

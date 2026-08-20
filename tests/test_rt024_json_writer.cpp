@@ -34,7 +34,7 @@ void TestWriteUndistortJson() {
   new_intrinsic.image_height = 64;
   new_intrinsic.center = 0;
 
-  vc::WriteRt024UndistortJson(output, calibration, new_intrinsic);
+  vc::WriteUndistortJson(output, calibration, new_intrinsic);
   const auto json = vc::ReadJson(output);
   Expect(json.contains("undistort_setting"), "undistort_setting");
   const auto& setting = json.at("undistort_setting");
@@ -54,7 +54,7 @@ void TestWriteVirtualJson() {
   Eigen::Matrix4d extrinsic = Eigen::Matrix4d::Identity();
   const std::vector<double> dist = {0, 0, 0, 0, 0, 0, 0, 0};
 
-  vc::WriteRt024VirtualJson(output, intrinsic, extrinsic, dist);
+  vc::WriteVirtualJson(output, intrinsic, extrinsic, dist);
   const auto json = vc::ReadJson(output);
   Expect(json.contains("virtual_camera_setting"), "virtual_camera_setting");
   const auto& setting = json.at("virtual_camera_setting");

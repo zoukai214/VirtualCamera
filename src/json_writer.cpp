@@ -75,7 +75,7 @@ void SaveVirtualJson(const std::string& input_root, const std::string& output_ro
   WriteJson((output_dir / (camera_name + "-to-car_center-extrinsic.json")).string(), extri_json);
 }
 
-void WriteRt024UndistortJson(const std::string& output_path,
+void WriteUndistortJson(const std::string& output_path,
                              const CalibrationParam& calibration,
                              const NewIntrinsicConfig& new_intrinsic) {
   Eigen::Matrix3d intrinsics = Eigen::Matrix3d::Identity();
@@ -95,7 +95,7 @@ void WriteRt024UndistortJson(const std::string& output_path,
   WriteJson(output_path, json);
 }
 
-void WriteRt024VirtualJson(const std::string& output_path,
+void WriteVirtualJson(const std::string& output_path,
                            const Eigen::Matrix3d& virtual_intrinsic,
                            const Eigen::Matrix4d& virtual_extrinsic,
                            const std::vector<double>& dist_data) {

@@ -11,9 +11,9 @@ void Expect(bool condition, const std::string& message) {
   }
 }
 
-void TestLoadCalibrationFromRt024Dataset() {
+void TestLoadCalibrationFromDataset() {
   const vc::CalibrationParam calibration =
-      vc::LoadRt024Calibration("/workspace/GACRT024_1754812994/calib_extract",
+      vc::LoadCalibration("/workspace/GACRT024_1754812994/calib_extract",
                                "calib_camera_front_wide_to_car.json",
                                "camera-front-wide",
                                "camera-front-wide-to-car",
@@ -26,7 +26,7 @@ void TestLoadCalibrationFromRt024Dataset() {
 void TestLoadCalibrationMissingKey() {
   bool thrown = false;
   try {
-    static_cast<void>(vc::LoadRt024Calibration(
+    static_cast<void>(vc::LoadCalibration(
         "/workspace/GACRT024_1754812994/calib_extract",
         "calib_camera_front_wide_to_car.json",
         "missing-key", "camera-front-wide-to-car", 0));
@@ -39,7 +39,7 @@ void TestLoadCalibrationMissingKey() {
 }  // namespace
 
 int main() {
-  TestLoadCalibrationFromRt024Dataset();
+  TestLoadCalibrationFromDataset();
   TestLoadCalibrationMissingKey();
   return 0;
 }

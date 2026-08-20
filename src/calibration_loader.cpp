@@ -18,7 +18,7 @@ const nlohmann::json& RequiredNode(const nlohmann::json& json, const std::string
 
 }  // namespace
 
-CalibrationParam LoadRt024Calibration(const std::string& calib_dir,
+CalibrationParam LoadCalibration(const std::string& calib_dir,
                                       const std::string& conf_json,
                                       const std::string& intri_key,
                                       const std::string& extri_key,

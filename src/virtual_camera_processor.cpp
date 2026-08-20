@@ -48,14 +48,14 @@ CalibrationParam LoadVirtualSourceCalibration(const PipelineConfig& config,
       (config.undistort_image == 2 && task.undistort_image != 0);
   if (use_undistort_variant) {
     try {
-      return LoadRt024Calibration(calib_dir.string(), task.conf_json,
+      return LoadCalibration(calib_dir.string(), task.conf_json,
                                   task.conf_intri_key + "-undistort",
                                   task.conf_extri_key + "-undistort",
                                   config.distort_model);
     } catch (const std::exception&) {
     }
   }
-  return LoadRt024Calibration(calib_dir.string(), task.conf_json, task.conf_intri_key,
+  return LoadCalibration(calib_dir.string(), task.conf_json, task.conf_intri_key,
                               task.conf_extri_key, config.distort_model);
 }
 
@@ -99,7 +99,7 @@ void RunVirtualCameraTask(const PipelineConfig& config,
   const std::filesystem::path json_output =
       std::filesystem::path(config.output_root) / config.paths.vc_conf_dir_path /
       task.calib_json;
-  WriteRt024VirtualJson(json_output.string(), generator.virtual_intrinsic(),
+  WriteVirtualJson(json_output.string(), generator.virtual_intrinsic(),
                         generator.virtual_extrinsic(), std::vector<double>(8, 0.0));
 
   const std::filesystem::path input_dir =

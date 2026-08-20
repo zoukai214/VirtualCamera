@@ -11,21 +11,21 @@
 
 int main(int argc, char** argv) {
   try {
-    const vc::Rt024RuntimeArgs args = vc::ParseRt024RuntimeArgs(argc, argv);
+    const vc::RuntimeArgs args = vc::ParseRuntimeArgs(argc, argv);
     vc::PipelineConfig config = vc::LoadPipelineConfig(args.config_path);
-    vc::ApplyRt024RuntimeArgs(args, &config);
+    vc::ApplyRuntimeArgs(args, &config);
     vc::LogInfo(config.showinfo != 0,
-                vc::BuildRt024PipelineStartMessage(args, config));
+                vc::BuildPipelineStartMessage(args, config));
 
     vc::RunTopLevelPipelines(
         config,
         [&config]() { vc::RunUndistortPipeline(config); },
         [&config]() { vc::RunVirtualCameraPipeline(config); });
 
-    const vc::VerifyResult result = vc::MaybeVerifyRt024Outputs(
+    const vc::VerifyResult result = vc::MaybeVerifyOutputs(
         args, config,
         [](const std::string& golden_root, const std::string& actual_root) {
-          return vc::VerifyRt024Outputs(golden_root, actual_root);
+          return vc::VerifyOutputs(golden_root, actual_root);
         });
     if (!result.ok) {
       std::cerr << result.message << "\n";
@@ -39,7 +39,7 @@ int main(int argc, char** argv) {
       const std::string program_name =
           (argc > 0 && argv != nullptr && argv[0] != nullptr) ? argv[0]
                                                               : "virtual_camera_tool";
-      std::cerr << vc::BuildRt024Usage(program_name) << "\n";
+      std::cerr << vc::BuildUsage(program_name) << "\n";
     }
     return 1;
   } catch (const std::exception& error) {

@@ -10,7 +10,7 @@ namespace {
 
 UsageError MakeUsageError(const std::string& message,
                           const std::string& program_name) {
-  return UsageError(message + "\n" + BuildRt024Usage(program_name));
+  return UsageError(message + "\n" + BuildUsage(program_name));
 }
 
 const char* RequireValue(int argc, const char* const* argv, int index,
@@ -31,18 +31,18 @@ std::filesystem::path NormalizePathForComparison(const std::string& path) {
 
 }  // namespace
 
-std::string BuildRt024Usage(const std::string& program_name) {
+std::string BuildUsage(const std::string& program_name) {
   return "Usage: " + program_name +
          " --dataset_root <path> --config_path <path> "
          "[--output_root <path>] [--debug --golden_root <path>]";
 }
 
-Rt024RuntimeArgs ParseRt024RuntimeArgs(int argc, const char* const* argv) {
+RuntimeArgs ParseRuntimeArgs(int argc, const char* const* argv) {
   if (argc <= 0 || argv == nullptr || argv[0] == nullptr) {
     throw UsageError("invalid argv");
   }
 
-  Rt024RuntimeArgs args;
+  RuntimeArgs args;
   for (int index = 1; index < argc; ++index) {
     const std::string flag = argv[index];
     if (flag == "--dataset_root") {
@@ -98,7 +98,7 @@ Rt024RuntimeArgs ParseRt024RuntimeArgs(int argc, const char* const* argv) {
   return args;
 }
 
-void ApplyRt024RuntimeArgs(const Rt024RuntimeArgs& args, PipelineConfig* config) {
+void ApplyRuntimeArgs(const RuntimeArgs& args, PipelineConfig* config) {
   if (config == nullptr) {
     throw std::invalid_argument("config must not be null");
   }
@@ -108,8 +108,8 @@ void ApplyRt024RuntimeArgs(const Rt024RuntimeArgs& args, PipelineConfig* config)
   config->paths.dataset_root = config->dataset_root;
 }
 
-VerifyResult MaybeVerifyRt024Outputs(
-    const Rt024RuntimeArgs& args, const PipelineConfig& config,
+VerifyResult MaybeVerifyOutputs(
+    const RuntimeArgs& args, const PipelineConfig& config,
     const std::function<VerifyResult(const std::string&, const std::string&)>&
         verifier) {
   if (!args.debug) {

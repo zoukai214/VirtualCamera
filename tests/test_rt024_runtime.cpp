@@ -22,13 +22,13 @@ vc::PipelineConfig MakeConfig() {
   return config;
 }
 
-void TestApplyRt024RuntimeArgsSetsRuntimeRoots() {
+void TestApplyRuntimeArgsSetsRuntimeRoots() {
   vc::PipelineConfig config = MakeConfig();
-  vc::Rt024RuntimeArgs args;
+  vc::RuntimeArgs args;
   args.dataset_root = "/tmp/dataset";
   args.output_root = "/tmp/output";
 
-  vc::ApplyRt024RuntimeArgs(args, &config);
+  vc::ApplyRuntimeArgs(args, &config);
 
   Expect(config.dataset_root == "/tmp/dataset", "dataset_root should update");
   Expect(config.output_root == "/tmp/output", "output_root should update");
@@ -36,12 +36,12 @@ void TestApplyRt024RuntimeArgsSetsRuntimeRoots() {
          "paths.dataset_root should update");
 }
 
-void TestApplyRt024RuntimeArgsDefaultsOutputRootToDatasetRoot() {
+void TestApplyRuntimeArgsDefaultsOutputRootToDatasetRoot() {
   vc::PipelineConfig config = MakeConfig();
-  vc::Rt024RuntimeArgs args;
+  vc::RuntimeArgs args;
   args.dataset_root = "/tmp/dataset";
 
-  vc::ApplyRt024RuntimeArgs(args, &config);
+  vc::ApplyRuntimeArgs(args, &config);
 
   Expect(config.dataset_root == "/tmp/dataset", "dataset_root should update");
   Expect(config.output_root == "/tmp/dataset",
@@ -50,8 +50,8 @@ void TestApplyRt024RuntimeArgsDefaultsOutputRootToDatasetRoot() {
          "paths.dataset_root should default to dataset_root");
 }
 
-void TestMaybeVerifyRt024OutputsSkipsWhenDebugDisabled() {
-  vc::Rt024RuntimeArgs args;
+void TestMaybeVerifyOutputsSkipsWhenDebugDisabled() {
+  vc::RuntimeArgs args;
   args.debug = false;
   args.golden_root = "/tmp/golden";
 
@@ -59,7 +59,7 @@ void TestMaybeVerifyRt024OutputsSkipsWhenDebugDisabled() {
   config.output_root = "/tmp/output";
 
   bool verifier_called = false;
-  const vc::VerifyResult result = vc::MaybeVerifyRt024Outputs(
+  const vc::VerifyResult result = vc::MaybeVerifyOutputs(
       args, config,
       [&verifier_called](const std::string&, const std::string&) {
         verifier_called = true;
@@ -70,8 +70,8 @@ void TestMaybeVerifyRt024OutputsSkipsWhenDebugDisabled() {
   Expect(!verifier_called, "verifier should not run when debug is false");
 }
 
-void TestMaybeVerifyRt024OutputsCallsVerifierWhenDebugEnabled() {
-  vc::Rt024RuntimeArgs args;
+void TestMaybeVerifyOutputsCallsVerifierWhenDebugEnabled() {
+  vc::RuntimeArgs args;
   args.debug = true;
   args.golden_root = "/tmp/golden";
 
@@ -79,7 +79,7 @@ void TestMaybeVerifyRt024OutputsCallsVerifierWhenDebugEnabled() {
   config.output_root = "/tmp/output";
 
   bool verifier_called = false;
-  const vc::VerifyResult result = vc::MaybeVerifyRt024Outputs(
+  const vc::VerifyResult result = vc::MaybeVerifyOutputs(
       args, config,
       [&verifier_called](const std::string& golden_root,
                          const std::string& actual_root) {
@@ -98,9 +98,9 @@ void TestMaybeVerifyRt024OutputsCallsVerifierWhenDebugEnabled() {
 }  // namespace
 
 int main() {
-  TestApplyRt024RuntimeArgsSetsRuntimeRoots();
-  TestApplyRt024RuntimeArgsDefaultsOutputRootToDatasetRoot();
-  TestMaybeVerifyRt024OutputsSkipsWhenDebugDisabled();
-  TestMaybeVerifyRt024OutputsCallsVerifierWhenDebugEnabled();
+  TestApplyRuntimeArgsSetsRuntimeRoots();
+  TestApplyRuntimeArgsDefaultsOutputRootToDatasetRoot();
+  TestMaybeVerifyOutputsSkipsWhenDebugDisabled();
+  TestMaybeVerifyOutputsCallsVerifierWhenDebugEnabled();
   return 0;
 }

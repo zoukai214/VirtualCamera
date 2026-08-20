@@ -27,7 +27,7 @@ void LogInfo(bool enabled, const std::string& message) {
   std::cout << "[INFO] " << message << "\n" << std::flush;
 }
 
-std::string BuildRt024PipelineStartMessage(const Rt024RuntimeArgs& args,
+std::string BuildPipelineStartMessage(const RuntimeArgs& args,
                                            const PipelineConfig& config) {
   std::ostringstream stream;
   stream << "pipeline start: dataset=" << args.dataset_root

@@ -135,8 +135,8 @@ void TestLogInfoFlushesToRealStdoutSinkBeforeProcessExit() {
          "LogInfo should flush to a real stdout sink immediately");
 }
 
-void TestBuildRt024PipelineStartMessageIncludesRuntimeRoots() {
-  vc::Rt024RuntimeArgs args;
+void TestBuildPipelineStartMessageIncludesRuntimeRoots() {
+  vc::RuntimeArgs args;
   args.dataset_root = "/tmp/dataset";
   args.config_path = "configs/config_rt024_parallel_run.json";
   args.output_root = "/tmp/args-output";
@@ -146,7 +146,7 @@ void TestBuildRt024PipelineStartMessageIncludesRuntimeRoots() {
   config.output_root = "/tmp/output";
 
   const std::string message =
-      vc::BuildRt024PipelineStartMessage(args, config);
+      vc::BuildPipelineStartMessage(args, config);
   Expect(message.find("pipeline start:") != std::string::npos,
          "message should contain pipeline prefix");
   Expect(message.find("dataset=/tmp/dataset") != std::string::npos,
@@ -244,7 +244,7 @@ int main() {
   TestLogInfoSkipsDisabledMessages();
   TestLogInfoFlushesToRealStdoutSinkBeforeProcessExit();
   TestLogInfoKeepsConcurrentLinesIntact();
-  TestBuildRt024PipelineStartMessageIncludesRuntimeRoots();
+  TestBuildPipelineStartMessageIncludesRuntimeRoots();
   TestBuildUndistortPipelineStartMessageIncludesTaskCountAndParallelism();
   TestBuildUndistortPipelineDoneMessageIncludesElapsedMilliseconds();
   TestBuildVirtualTaskStartMessageIncludesTaskIdentity();

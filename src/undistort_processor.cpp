@@ -35,7 +35,7 @@ std::vector<std::filesystem::path> ListFiles(const std::filesystem::path& dir) {
 
 CalibrationParam LoadUndistortSourceCalibration(const PipelineConfig& config,
                                                 const UndistortTaskConfig& task) {
-  return LoadRt024Calibration(
+  return LoadCalibration(
       (std::filesystem::path(config.dataset_root) / config.paths.conf_dir_path).string(),
       task.conf_json, task.intri_key, task.extri_key, config.distort_model);
 }
@@ -51,7 +51,7 @@ void RunUndistortTask(const PipelineConfig& config, const UndistortTaskConfig& t
   const std::filesystem::path json_output =
       std::filesystem::path(config.output_root) / config.paths.undistort_conf_dir_path /
       task.conf_json;
-  WriteRt024UndistortJson(json_output.string(), calibration, task.new_intrinsic);
+  WriteUndistortJson(json_output.string(), calibration, task.new_intrinsic);
 
   const std::filesystem::path input_dir =
       std::filesystem::path(config.dataset_root) / config.paths.image_dir_path / task.image_dir;

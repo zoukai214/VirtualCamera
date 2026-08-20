@@ -10,7 +10,7 @@ namespace vc {
 
 void LogInfo(bool enabled, const std::string& message);
 
-std::string BuildRt024PipelineStartMessage(const Rt024RuntimeArgs& args,
+std::string BuildPipelineStartMessage(const RuntimeArgs& args,
                                            const PipelineConfig& config);
 std::string BuildUndistortPipelineStartMessage(const PipelineConfig& config);
 std::string BuildUndistortPipelineDoneMessage(long long elapsed_ms);

@@ -173,7 +173,7 @@ void CompareJsonDirectory(const std::filesystem::path& golden_root,
 
 }  // namespace
 
-VerifyResult VerifyOutputs(const std::string& golden_root, const std::string& actual_root) {
+VerifyResult VerifyGdcOutputs(const std::string& golden_root, const std::string& actual_root) {
   std::ostringstream errors;
   CompareBinDirectory(golden_root, actual_root, "calib/gdc", &errors);
   CompareBinDirectory(golden_root, actual_root, "calib/gdc_intri", &errors);
@@ -186,7 +186,7 @@ VerifyResult VerifyOutputs(const std::string& golden_root, const std::string& ac
   return {true, "verification passed"};
 }
 
-VerifyResult VerifyRt024Outputs(const std::string& golden_root,
+VerifyResult VerifyOutputs(const std::string& golden_root,
                                 const std::string& actual_root) {
   std::ostringstream errors;
   CompareBinDirectory(golden_root, actual_root, "vc_gdcbin_dir_path", &errors);
