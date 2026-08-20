@@ -78,21 +78,28 @@ void PipelineOrchestrator::SaveVirtualCameraArtifacts(
   SaveVirtualCameraCacheArtifacts(config_, virtual_camera_cache_, output_root);
 }
 
-void PipelineOrchestrator::ProcessUndistortFrame(
-    int camera_id, const cv::Mat& image,
+std::vector<UndistortFrameResult> PipelineOrchestrator::ProcessUndistortFrame(
+    int camera_id, const cv::Mat& image) const {
+  return vc::ProcessUndistortFrame(undistort_cache_, camera_id, image);
+}
+
+std::vector<VirtualCameraFrameResult>
+PipelineOrchestrator::ProcessVirtualCameraFrame(
+    int camera_id, const cv::Mat& image) const {
+  return vc::ProcessVirtualCameraFrame(virtual_camera_cache_, camera_id, image);
+}
+
+void PipelineOrchestrator::SaveUndistortFrameResults(
+    const std::vector<UndistortFrameResult>& results,
     const std::string& output_root, const std::string& input_filename) const {
-  const std::vector<UndistortFrameResult> results =
-      vc::ProcessUndistortFrame(undistort_cache_, camera_id, image);
   for (const auto& result : results) {
     SaveUndistortFrameResult(config_, result, output_root, input_filename);
   }
 }
 
-void PipelineOrchestrator::ProcessVirtualCameraFrame(
-    int camera_id, const cv::Mat& image,
+void PipelineOrchestrator::SaveVirtualCameraFrameResults(
+    const std::vector<VirtualCameraFrameResult>& results,
     const std::string& output_root, const std::string& input_filename) const {
-  const std::vector<VirtualCameraFrameResult> results =
-      vc::ProcessVirtualCameraFrame(virtual_camera_cache_, camera_id, image);
   for (const auto& result : results) {
     SaveVirtualCameraFrameResult(config_, result, output_root, input_filename);
   }

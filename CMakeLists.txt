@@ -12,8 +12,6 @@ set(EIGEN_ROOT ${THIRD_PARTY_ROOT}/eigen)
 set(OPENCV_ROOT ${THIRD_PARTY_ROOT}/opencv)
 set(NLOHMANN_JSON_ROOT ${THIRD_PARTY_ROOT}/nlohmann_json/include)
 
-find_package(yaml-cpp REQUIRED)
-
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${EIGEN_ROOT}/include/eigen3)
 include_directories(${OPENCV_ROOT}/include)
@@ -78,7 +76,6 @@ target_link_libraries(virtual_camera_core PUBLIC
     pthread
     rt
     dl
-    yaml-cpp
 )
 
 if(EXISTS ${PROJECT_SOURCE_DIR}/src/main.cpp)

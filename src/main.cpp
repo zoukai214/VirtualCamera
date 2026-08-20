@@ -69,8 +69,11 @@ int main(int argc, char** argv) {
                 config.paths.image_dir_path / source_camera.image_dir;
             for (const auto& image_path : ListFiles(input_dir)) {
               const cv::Mat image = ReadFrame(image_path);
-              orchestrator.ProcessUndistortFrame(
-                  source_camera.camera_id, image, args.output_root,
+              const std::vector<vc::UndistortFrameResult> results =
+                  orchestrator.ProcessUndistortFrame(source_camera.camera_id,
+                                                     image);
+              orchestrator.SaveUndistortFrameResults(
+                  results, args.output_root,
                   image_path.filename().string());
             }
           }
@@ -105,8 +108,11 @@ int main(int argc, char** argv) {
                 config.paths.image_dir_path / source_camera.image_dir;
             for (const auto& image_path : ListFiles(input_dir)) {
               const cv::Mat image = ReadFrame(image_path);
-              orchestrator.ProcessVirtualCameraFrame(
-                  source_camera.camera_id, image, args.output_root,
+              const std::vector<vc::VirtualCameraFrameResult> results =
+                  orchestrator.ProcessVirtualCameraFrame(
+                      source_camera.camera_id, image);
+              orchestrator.SaveVirtualCameraFrameResults(
+                  results, args.output_root,
                   image_path.filename().string());
             }
           }

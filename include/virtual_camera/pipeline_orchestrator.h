@@ -34,12 +34,16 @@ class PipelineOrchestrator {
   void SaveUndistortArtifacts(const std::string& output_root) const;
   void SaveVirtualCameraArtifacts(const std::string& output_root) const;
 
-  void ProcessUndistortFrame(int camera_id, const cv::Mat& image,
-                             const std::string& output_root,
-                             const std::string& input_filename) const;
-  void ProcessVirtualCameraFrame(int camera_id, const cv::Mat& image,
-                                 const std::string& output_root,
-                                 const std::string& input_filename) const;
+  std::vector<UndistortFrameResult> ProcessUndistortFrame(
+      int camera_id, const cv::Mat& image) const;
+  std::vector<VirtualCameraFrameResult> ProcessVirtualCameraFrame(
+      int camera_id, const cv::Mat& image) const;
+  void SaveUndistortFrameResults(
+      const std::vector<UndistortFrameResult>& results,
+      const std::string& output_root, const std::string& input_filename) const;
+  void SaveVirtualCameraFrameResults(
+      const std::vector<VirtualCameraFrameResult>& results,
+      const std::string& output_root, const std::string& input_filename) const;
 
  private:
   PipelineConfig config_;

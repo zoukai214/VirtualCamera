@@ -7,6 +7,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -202,10 +203,27 @@ void TestPipelineOrchestratorSavesAndProcessesFrames() {
   const cv::Mat image = cv::imread(source_image.string(), cv::IMREAD_COLOR);
   Expect(!image.empty(), "fixture image should load");
 
-  orchestrator.ProcessUndistortFrame(1, image, root.string(),
-                                     source_image.filename().string());
-  orchestrator.ProcessVirtualCameraFrame(1, image, root.string(),
-                                         source_image.filename().string());
+  const std::vector<vc::UndistortFrameResult> undistort_results =
+      orchestrator.ProcessUndistortFrame(1, image);
+  const std::vector<vc::VirtualCameraFrameResult> virtual_results =
+      orchestrator.ProcessVirtualCameraFrame(1, image);
+
+  Expect(undistort_results.size() == 1,
+         "undistort processing should return one frame result");
+  Expect(virtual_results.size() == 1,
+         "virtual camera processing should return one frame result");
+  Expect(!std::filesystem::exists(root / "image_undistortion" / "front_wide" /
+                                  "synthetic_front_wide.jpg"),
+         "undistort processing should not save a frame");
+  Expect(!std::filesystem::exists(root / "image_virtual_camera" /
+                                  "front_wide_110" /
+                                  "fw110_synthetic_front_wide.jpg"),
+         "virtual camera processing should not save a frame");
+
+  orchestrator.SaveUndistortFrameResults(
+      undistort_results, root.string(), source_image.filename().string());
+  orchestrator.SaveVirtualCameraFrameResults(
+      virtual_results, root.string(), source_image.filename().string());
 
   Expect(std::filesystem::exists(root / "calib_undistortion" /
                                  "calib_camera_front_wide_to_car.json"),
