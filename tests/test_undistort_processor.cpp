@@ -1,6 +1,8 @@
 #include "virtual_camera/pipeline_config.h"
 #include "virtual_camera/undistort_processor.h"
 
+#include <opencv2/core.hpp>
+
 #include <filesystem>
 #include <functional>
 #include <iostream>
@@ -48,11 +50,8 @@ std::filesystem::path MakeTestRoot(const std::string& name) {
   return root;
 }
 
-vc::PipelineConfig MakeBaseConfig(const std::filesystem::path& output_root) {
+vc::PipelineConfig MakeBaseConfig() {
   vc::PipelineConfig config;
-  config.dataset_root = "/workspace/GACRT024_1754812994";
-  config.output_root = output_root.string();
-  config.paths.dataset_root = config.dataset_root;
   config.paths.conf_dir_path = "calib_extract";
   config.paths.image_dir_path = "image_raw";
   config.paths.undistort_conf_dir_path = "calib_undistortion";
@@ -103,9 +102,7 @@ vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
       source_image, image_dir / source_image.filename(),
       std::filesystem::copy_options::overwrite_existing);
 
-  vc::PipelineConfig config = MakeBaseConfig(root);
-  config.dataset_root = dataset_root.string();
-  config.paths.dataset_root = config.dataset_root;
+  vc::PipelineConfig config = MakeBaseConfig();
   return config;
 }
 
@@ -124,7 +121,7 @@ std::string CaptureStdout(const std::function<void()>& fn) {
 
 void TestRunUndistortPipelineSerialStopsAfterFirstFailure() {
   const std::filesystem::path root = MakeTestRoot("serial_fail_fast");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.undistort_parallelism = 1;
   config.undistort_tasks.push_back(
       MakeTask("missing_calibration.json", "front_wide/"));
@@ -133,7 +130,7 @@ void TestRunUndistortPipelineSerialStopsAfterFirstFailure() {
 
   bool thrown = false;
   try {
-    vc::RunUndistortPipeline(config);
+    vc::RunUndistortPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error&) {
     thrown = true;
   }
@@ -147,14 +144,14 @@ void TestRunUndistortPipelineSerialStopsAfterFirstFailure() {
 
 void TestRunUndistortPipelineRejectsDuplicateJsonOutputs() {
   const std::filesystem::path root = MakeTestRoot("parallel_json_collision");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.undistort_parallelism = 2;
   config.undistort_tasks.push_back(MakeTask("cam.json", "front_wide/"));
   config.undistort_tasks.push_back(MakeTask("./cam.json", "front_narrow/"));
 
   bool thrown = false;
   try {
-    vc::RunUndistortPipeline(config);
+    vc::RunUndistortPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     thrown = message.find("duplicate undistort output json path") != std::string::npos;
@@ -168,14 +165,14 @@ void TestRunUndistortPipelineRejectsDuplicateJsonOutputs() {
 
 void TestRunUndistortPipelineRejectsDuplicateImageOutputs() {
   const std::filesystem::path root = MakeTestRoot("parallel_image_collision");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.undistort_parallelism = 2;
   config.undistort_tasks.push_back(MakeTask("front_wide_a.json", "front_wide/"));
   config.undistort_tasks.push_back(MakeTask("front_wide_b.json", "front_wide//"));
 
   bool thrown = false;
   try {
-    vc::RunUndistortPipeline(config);
+    vc::RunUndistortPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     thrown = message.find("duplicate undistort output image path") != std::string::npos;
@@ -189,12 +186,12 @@ void TestRunUndistortPipelineRejectsDuplicateImageOutputs() {
 
 void TestRunUndistortPipelineWritesOutputsForRealDataset() {
   const std::filesystem::path root = MakeTestRoot("real_dataset");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.undistort_parallelism = 1;
   config.undistort_tasks.push_back(
       MakeTask("calib_camera_front_wide_to_car.json", "front_wide/"));
 
-  vc::RunUndistortPipeline(config);
+  vc::RunUndistortPipeline(config, "/workspace/GACRT024_1754812994", root.string());
 
   Expect(std::filesystem::exists(root / "calib_undistortion" /
                                  "calib_camera_front_wide_to_car.json"),
@@ -213,8 +210,9 @@ void TestRunUndistortPipelinePrintsTaskLogsWhenShowinfoEnabled() {
   task.new_intrinsic = MakeSmallNewIntrinsic();
   config.undistort_tasks.push_back(task);
 
-  const std::string output = CaptureStdout([&config]() {
-    vc::RunUndistortPipeline(config);
+  const std::string output = CaptureStdout([&config, &root]() {
+    vc::RunUndistortPipeline(config, (root / "dataset").string(),
+                             root.string());
   });
 
   const std::size_t pipeline_start =
@@ -253,11 +251,69 @@ void TestRunUndistortPipelineSkipsTaskLogsWhenShowinfoDisabled() {
   task.new_intrinsic = MakeSmallNewIntrinsic();
   config.undistort_tasks.push_back(task);
 
-  const std::string output = CaptureStdout([&config]() {
-    vc::RunUndistortPipeline(config);
+  const std::string output = CaptureStdout([&config, &root]() {
+    vc::RunUndistortPipeline(config, (root / "dataset").string(),
+                             root.string());
   });
 
   Expect(output.empty(), "disabled showinfo should not print undistort logs");
+}
+
+void TestBuildUndistortCacheIndexesEntriesByCameraId() {
+  const std::filesystem::path root = MakeTestRoot("cache_by_camera_id");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  vc::UndistortTaskConfig task =
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/");
+  task.new_intrinsic = MakeSmallNewIntrinsic();
+  config.undistort_tasks.push_back(task);
+
+  const vc::UndistortCache cache = vc::BuildUndistortCache(config, (root / "dataset").string());
+
+  const auto found = cache.entries_by_camera_id.find(1);
+  Expect(found != cache.entries_by_camera_id.end(),
+         "undistort cache should infer front wide camera id");
+  Expect(found->second.size() == 1,
+         "undistort cache should keep one entry for camera id");
+}
+
+void TestProcessUndistortFrameUsesCameraIdCache() {
+  const std::filesystem::path root = MakeTestRoot("process_frame_by_camera_id");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  vc::UndistortTaskConfig task =
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/");
+  task.new_intrinsic = MakeSmallNewIntrinsic();
+  config.undistort_tasks.push_back(task);
+
+  const vc::UndistortCache cache = vc::BuildUndistortCache(config, (root / "dataset").string());
+  cv::Mat image(8, 16, CV_8UC3, cv::Scalar(4, 5, 6));
+
+  const std::vector<vc::UndistortFrameResult> results =
+      vc::ProcessUndistortFrame(cache, 1, image);
+  const std::vector<vc::UndistortFrameResult> missing_results =
+      vc::ProcessUndistortFrame(cache, 99, image);
+
+  Expect(results.size() == 1,
+         "matching camera id should produce one undistort frame");
+  Expect(results.front().image.rows == 8 && results.front().image.cols == 16,
+         "undistort frame should use configured image size");
+  Expect(results.front().task.image_dir == "front_wide/",
+         "undistort frame result should keep task metadata");
+  Expect(missing_results.empty(),
+         "unknown camera id should produce no undistort frames");
+}
+
+void TestSaveUndistortFrameResultWritesExistingOutputLayout() {
+  const std::filesystem::path root = MakeTestRoot("save_frame_result");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  vc::UndistortFrameResult result;
+  result.task = MakeTask("calib_camera_front_wide_to_car.json", "front_wide/");
+  result.image = cv::Mat(8, 16, CV_8UC3, cv::Scalar(1, 2, 3));
+
+  vc::SaveUndistortFrameResult(config, result, root.string(), "source.jpg");
+
+  Expect(std::filesystem::exists(root / "image_undistortion" / "front_wide" /
+                                 "source.jpg"),
+         "undistort frame save function should keep existing output layout");
 }
 
 }  // namespace
@@ -269,5 +325,8 @@ int main() {
   TestRunUndistortPipelineWritesOutputsForRealDataset();
   TestRunUndistortPipelinePrintsTaskLogsWhenShowinfoEnabled();
   TestRunUndistortPipelineSkipsTaskLogsWhenShowinfoDisabled();
+  TestBuildUndistortCacheIndexesEntriesByCameraId();
+  TestProcessUndistortFrameUsesCameraIdCache();
+  TestSaveUndistortFrameResultWritesExistingOutputLayout();
   return 0;
 }

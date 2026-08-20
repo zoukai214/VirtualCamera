@@ -102,10 +102,7 @@ void ApplyRuntimeArgs(const RuntimeArgs& args, PipelineConfig* config) {
   if (config == nullptr) {
     throw std::invalid_argument("config must not be null");
   }
-
-  config->dataset_root = args.dataset_root;
-  config->output_root = args.output_root.empty() ? args.dataset_root : args.output_root;
-  config->paths.dataset_root = config->dataset_root;
+  static_cast<void>(args);
 }
 
 VerifyResult MaybeVerifyOutputs(
@@ -115,7 +112,8 @@ VerifyResult MaybeVerifyOutputs(
   if (!args.debug) {
     return VerifyResult{true, "verification skipped (debug disabled)"};
   }
-  return verifier(args.golden_root, config.output_root);
+  static_cast<void>(config);
+  return verifier(args.golden_root, args.output_root);
 }
 
 }  // namespace vc

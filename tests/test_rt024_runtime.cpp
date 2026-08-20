@@ -16,13 +16,11 @@ void Expect(bool condition, const std::string& message) {
 
 vc::PipelineConfig MakeConfig() {
   vc::PipelineConfig config;
-  config.dataset_root = "/stale/dataset";
-  config.output_root = "/stale/output";
-  config.paths.dataset_root = "/stale/path";
+  config.paths.conf_dir_path = "calib_extract";
   return config;
 }
 
-void TestApplyRuntimeArgsSetsRuntimeRoots() {
+void TestApplyRuntimeArgsKeepsConfigRuntimeIndependent() {
   vc::PipelineConfig config = MakeConfig();
   vc::RuntimeArgs args;
   args.dataset_root = "/tmp/dataset";
@@ -30,33 +28,29 @@ void TestApplyRuntimeArgsSetsRuntimeRoots() {
 
   vc::ApplyRuntimeArgs(args, &config);
 
-  Expect(config.dataset_root == "/tmp/dataset", "dataset_root should update");
-  Expect(config.output_root == "/tmp/output", "output_root should update");
-  Expect(config.paths.dataset_root == "/tmp/dataset",
-         "paths.dataset_root should update");
+  Expect(config.paths.conf_dir_path == "calib_extract",
+         "runtime args should not mutate pipeline config");
 }
 
-void TestApplyRuntimeArgsDefaultsOutputRootToDatasetRoot() {
-  vc::PipelineConfig config = MakeConfig();
+void TestApplyRuntimeArgsRejectsNullConfig() {
   vc::RuntimeArgs args;
-  args.dataset_root = "/tmp/dataset";
 
-  vc::ApplyRuntimeArgs(args, &config);
-
-  Expect(config.dataset_root == "/tmp/dataset", "dataset_root should update");
-  Expect(config.output_root == "/tmp/dataset",
-         "output_root should default to dataset_root");
-  Expect(config.paths.dataset_root == "/tmp/dataset",
-         "paths.dataset_root should default to dataset_root");
+  bool thrown = false;
+  try {
+    vc::ApplyRuntimeArgs(args, nullptr);
+  } catch (const std::invalid_argument&) {
+    thrown = true;
+  }
+  Expect(thrown, "null config should be rejected");
 }
 
 void TestMaybeVerifyOutputsSkipsWhenDebugDisabled() {
   vc::RuntimeArgs args;
   args.debug = false;
   args.golden_root = "/tmp/golden";
+  args.output_root = "/tmp/output";
 
   vc::PipelineConfig config;
-  config.output_root = "/tmp/output";
 
   bool verifier_called = false;
   const vc::VerifyResult result = vc::MaybeVerifyOutputs(
@@ -74,9 +68,9 @@ void TestMaybeVerifyOutputsCallsVerifierWhenDebugEnabled() {
   vc::RuntimeArgs args;
   args.debug = true;
   args.golden_root = "/tmp/golden";
+  args.output_root = "/tmp/output";
 
   vc::PipelineConfig config;
-  config.output_root = "/tmp/output";
 
   bool verifier_called = false;
   const vc::VerifyResult result = vc::MaybeVerifyOutputs(
@@ -98,8 +92,8 @@ void TestMaybeVerifyOutputsCallsVerifierWhenDebugEnabled() {
 }  // namespace
 
 int main() {
-  TestApplyRuntimeArgsSetsRuntimeRoots();
-  TestApplyRuntimeArgsDefaultsOutputRootToDatasetRoot();
+  TestApplyRuntimeArgsKeepsConfigRuntimeIndependent();
+  TestApplyRuntimeArgsRejectsNullConfig();
   TestMaybeVerifyOutputsSkipsWhenDebugDisabled();
   TestMaybeVerifyOutputsCallsVerifierWhenDebugEnabled();
   return 0;

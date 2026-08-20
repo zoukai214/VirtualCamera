@@ -96,8 +96,6 @@ void TestLoadPipelineConfigSuccess() {
   })json");
 
   const vc::PipelineConfig config = vc::LoadPipelineConfig(path);
-  Expect(config.dataset_root.empty(), "dataset_root should be empty");
-  Expect(config.output_root.empty(), "output_root should be empty");
   Expect(config.virtual_tasks.size() == 1, "virtual task count");
   Expect(config.undistort_tasks.size() == 1, "undistort task count");
   Expect(config.task_parallelism == 2, "task_parallelism");

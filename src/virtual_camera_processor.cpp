@@ -19,6 +19,7 @@
 #include <stdexcept>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace vc {
@@ -40,9 +41,10 @@ std::string NormalizedDestination(const std::filesystem::path& path) {
 }
 
 CalibrationParam LoadVirtualSourceCalibration(const PipelineConfig& config,
+                                             const std::string& dataset_root,
                                              const VirtualCameraTaskConfig& task) {
   const std::filesystem::path calib_dir =
-      std::filesystem::path(config.dataset_root) / config.paths.conf_dir_path;
+      std::filesystem::path(dataset_root) / config.paths.conf_dir_path;
   const bool use_undistort_variant =
       config.undistort_image == 1 ||
       (config.undistort_image == 2 && task.undistort_image != 0);
@@ -78,55 +80,70 @@ VirtualParam BuildVirtualParam(const VirtualCameraTaskConfig& task,
   return param;
 }
 
-void RunVirtualCameraTask(const PipelineConfig& config,
-                          const VirtualCameraTaskConfig& task) {
-  const auto start_time = std::chrono::steady_clock::now();
-  LogInfo(config.showinfo != 0, BuildVirtualTaskStartMessage(task));
-
-  CalibrationParam calibration = LoadVirtualSourceCalibration(config, task);
+VirtualCameraCacheEntry BuildVirtualCameraCacheEntry(
+    const PipelineConfig& config, const std::string& dataset_root,
+    const VirtualCameraTaskConfig& task) {
+  CalibrationParam calibration =
+      LoadVirtualSourceCalibration(config, dataset_root, task);
   const VirtualCameraMaps maps =
       GenerateVirtualCameraMaps(calibration, task, config.distort_model);
-
-  const std::filesystem::path map_root =
-      std::filesystem::path(config.output_root) / config.paths.vc_gdcbin_dir_path;
-  SaveFloatMapFile((map_root / task.vc_mapx_name).string(), maps.map_x);
-  SaveFloatMapFile((map_root / task.vc_mapy_name).string(), maps.map_y);
-  SaveFloatMapFile((map_root / task.src2vc_mapx_name).string(), maps.src_map_x);
-  SaveFloatMapFile((map_root / task.src2vc_mapy_name).string(), maps.src_map_y);
-
   VirtualParam virtual_param = BuildVirtualParam(task, calibration);
   MapGenerator generator(calibration, virtual_param);
-  const std::filesystem::path json_output =
-      std::filesystem::path(config.output_root) / config.paths.vc_conf_dir_path /
-      task.calib_json;
-  WriteVirtualJson(json_output.string(), generator.virtual_intrinsic(),
-                        generator.virtual_extrinsic(), std::vector<double>(8, 0.0));
 
-  const std::filesystem::path input_dir =
-      std::filesystem::path(config.dataset_root) / config.paths.image_dir_path / task.image_dir;
-  const std::filesystem::path output_dir =
-      std::filesystem::path(config.output_root) / config.paths.vc_image_dir_path /
-      task.save_dir;
-  EnsureDirectory(output_dir.string());
-  for (const auto& path : ListFiles(input_dir)) {
-    const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
-    if (image.empty()) {
-      throw std::runtime_error("failed to read image: " + path.string());
-    }
-    cv::Mat remapped;
-    cv::remap(image, remapped, maps.map_x, maps.map_y, cv::INTER_LINEAR);
-    const std::string output_name = task.file_prefix + "_" + path.filename().string();
-    if (!cv::imwrite((output_dir / output_name).string(), remapped)) {
-      throw std::runtime_error("failed to write image: " +
-                               (output_dir / output_name).string());
-    }
-  }
-
-  LogInfo(config.showinfo != 0,
-          BuildVirtualTaskDoneMessage(task, ElapsedMilliseconds(start_time)));
+  VirtualCameraCacheEntry entry;
+  entry.task = task;
+  entry.maps = maps;
+  entry.virtual_intrinsic = generator.virtual_intrinsic();
+  entry.virtual_extrinsic = generator.virtual_extrinsic();
+  entry.dist_data = std::vector<double>(8, 0.0);
+  return entry;
 }
 
-void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
+void SaveVirtualCameraMapArtifacts(const PipelineConfig& config,
+                                   const VirtualCameraCacheEntry& entry,
+                                   const std::string& output_root) {
+  const VirtualCameraTaskConfig& task = entry.task;
+  const std::filesystem::path map_root =
+      std::filesystem::path(output_root) / config.paths.vc_gdcbin_dir_path;
+  SaveFloatMapFile((map_root / task.vc_mapx_name).string(), entry.maps.map_x);
+  SaveFloatMapFile((map_root / task.vc_mapy_name).string(), entry.maps.map_y);
+  SaveFloatMapFile((map_root / task.src2vc_mapx_name).string(),
+                   entry.maps.src_map_x);
+  SaveFloatMapFile((map_root / task.src2vc_mapy_name).string(),
+                   entry.maps.src_map_y);
+}
+
+void SaveVirtualCameraJsonArtifact(const PipelineConfig& config,
+                                   const VirtualCameraCacheEntry& entry,
+                                   const std::string& output_root) {
+  const VirtualCameraTaskConfig& task = entry.task;
+  const std::filesystem::path json_output =
+      std::filesystem::path(output_root) / config.paths.vc_conf_dir_path /
+      task.calib_json;
+  WriteVirtualJson(json_output.string(), entry.virtual_intrinsic,
+                   entry.virtual_extrinsic, entry.dist_data);
+}
+
+struct SourceCameraInput {
+  int camera_id = 0;
+  std::string image_dir;
+};
+
+std::vector<SourceCameraInput> BuildSourceCameraInputs(
+    const std::vector<VirtualCameraTaskConfig>& tasks) {
+  std::vector<SourceCameraInput> inputs;
+  std::unordered_set<int> seen_camera_ids;
+  for (const auto& task : tasks) {
+    if (!seen_camera_ids.insert(task.camera_id).second) {
+      continue;
+    }
+    inputs.push_back(SourceCameraInput{task.camera_id, task.image_dir});
+  }
+  return inputs;
+}
+
+void ValidateVirtualCameraOutputDestinations(const PipelineConfig& config,
+                                             const std::string& output_root) {
   std::unordered_set<std::string> outputs;
 
   auto RegisterOutput = [&outputs](const std::filesystem::path& path) {
@@ -139,53 +156,149 @@ void ValidateVirtualCameraOutputs(const PipelineConfig& config) {
 
   for (const auto& task : config.virtual_tasks) {
     const std::filesystem::path map_root =
-        std::filesystem::path(config.output_root) / config.paths.vc_gdcbin_dir_path;
+        std::filesystem::path(output_root) / config.paths.vc_gdcbin_dir_path;
     RegisterOutput(map_root / task.vc_mapx_name);
     RegisterOutput(map_root / task.vc_mapy_name);
     RegisterOutput(map_root / task.src2vc_mapx_name);
     RegisterOutput(map_root / task.src2vc_mapy_name);
 
     const std::filesystem::path json_output =
-        std::filesystem::path(config.output_root) / config.paths.vc_conf_dir_path /
+        std::filesystem::path(output_root) / config.paths.vc_conf_dir_path /
         task.calib_json;
     RegisterOutput(json_output);
 
-    const std::filesystem::path input_dir =
-        std::filesystem::path(config.dataset_root) / config.paths.image_dir_path /
-        task.image_dir;
     const std::filesystem::path image_root =
-        std::filesystem::path(config.output_root) / config.paths.vc_image_dir_path /
+        std::filesystem::path(output_root) / config.paths.vc_image_dir_path /
         task.save_dir;
-    for (const auto& input_path : ListFiles(input_dir)) {
-      RegisterOutput(image_root / (task.file_prefix + "_" + input_path.filename().string()));
-    }
+    RegisterOutput(image_root / (task.file_prefix + "_*"));
   }
 }
 
 }  // namespace
 
-void RunVirtualCameraPipeline(const PipelineConfig& config) {
+VirtualCameraCache BuildVirtualCameraCache(const PipelineConfig& config,
+                                           const std::string& dataset_root) {
+  VirtualCameraCache cache;
+  cache.entries.reserve(config.virtual_tasks.size());
+  for (const auto& task : config.virtual_tasks) {
+    VirtualCameraCacheEntry entry =
+        BuildVirtualCameraCacheEntry(config, dataset_root, task);
+    const std::size_t entry_index = cache.entries.size();
+    cache.entries.push_back(std::move(entry));
+    cache.entries_by_camera_id[task.camera_id].push_back(entry_index);
+  }
+  return cache;
+}
+
+void SaveVirtualCameraCacheArtifacts(const PipelineConfig& config,
+                                     const VirtualCameraCache& cache,
+                                     const std::string& output_root) {
+  for (const auto& entry : cache.entries) {
+    SaveVirtualCameraMapArtifacts(config, entry, output_root);
+    SaveVirtualCameraJsonArtifact(config, entry, output_root);
+  }
+}
+
+std::vector<VirtualCameraFrameResult> ProcessVirtualCameraFrame(
+    const VirtualCameraCache& cache, int camera_id, const cv::Mat& image) {
+  std::vector<VirtualCameraFrameResult> results;
+  const auto found = cache.entries_by_camera_id.find(camera_id);
+  if (found == cache.entries_by_camera_id.end()) {
+    return results;
+  }
+
+  results.reserve(found->second.size());
+  for (const std::size_t entry_index : found->second) {
+    const VirtualCameraCacheEntry& entry = cache.entries.at(entry_index);
+    VirtualCameraFrameResult result;
+    result.task = entry.task;
+    cv::remap(image, result.image, entry.maps.map_x, entry.maps.map_y,
+              cv::INTER_LINEAR);
+    results.push_back(std::move(result));
+  }
+  return results;
+}
+
+void SaveVirtualCameraFrameResult(const PipelineConfig& config,
+                                  const VirtualCameraFrameResult& result,
+                                  const std::string& output_root,
+                                  const std::string& input_filename) {
+  const std::filesystem::path output_dir =
+      std::filesystem::path(output_root) / config.paths.vc_image_dir_path /
+      result.task.save_dir;
+  EnsureDirectory(output_dir.string());
+  const std::string output_name = result.task.file_prefix + "_" + input_filename;
+  if (!cv::imwrite((output_dir / output_name).string(), result.image)) {
+    throw std::runtime_error("failed to write image: " +
+                             (output_dir / output_name).string());
+  }
+}
+
+void ValidateVirtualCameraOutputs(const PipelineConfig& config,
+                                  const std::string& output_root) {
+  ValidateVirtualCameraOutputDestinations(config, output_root);
+}
+
+void RunVirtualCameraPipeline(const PipelineConfig& config,
+                              const std::string& dataset_root,
+                              const std::string& output_root) {
   const auto start_time = std::chrono::steady_clock::now();
   LogInfo(config.showinfo != 0, BuildVirtualCameraPipelineStartMessage(config));
 
-  if (config.virtual_camera_parallelism <= 1) {
-    for (const auto& task : config.virtual_tasks) {
-      RunVirtualCameraTask(config, task);
-    }
-    LogInfo(config.showinfo != 0,
-            BuildVirtualCameraPipelineDoneMessage(
-                ElapsedMilliseconds(start_time)));
-    return;
-  }
+  ValidateVirtualCameraOutputs(config, output_root);
 
-  ValidateVirtualCameraOutputs(config);
-
-  std::vector<std::function<void()>> jobs;
-  jobs.reserve(config.virtual_tasks.size());
+  std::vector<std::chrono::steady_clock::time_point> task_start_times;
+  task_start_times.reserve(config.virtual_tasks.size());
   for (const auto& task : config.virtual_tasks) {
-    jobs.push_back([&config, task]() { RunVirtualCameraTask(config, task); });
+    task_start_times.push_back(std::chrono::steady_clock::now());
+    LogInfo(config.showinfo != 0, BuildVirtualTaskStartMessage(task));
   }
-  RunJobs(jobs, config.virtual_camera_parallelism);
+
+  const VirtualCameraCache cache = BuildVirtualCameraCache(config, dataset_root);
+  SaveVirtualCameraCacheArtifacts(config, cache, output_root);
+
+  const auto source_inputs = BuildSourceCameraInputs(config.virtual_tasks);
+  auto process_source_camera =
+      [&config, &cache, &dataset_root, &output_root](
+          const SourceCameraInput& input) {
+    const std::filesystem::path input_dir =
+        std::filesystem::path(dataset_root) / config.paths.image_dir_path /
+        input.image_dir;
+    for (const auto& path : ListFiles(input_dir)) {
+      const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
+      if (image.empty()) {
+        throw std::runtime_error("failed to read image: " + path.string());
+      }
+      const std::vector<VirtualCameraFrameResult> results =
+          ProcessVirtualCameraFrame(cache, input.camera_id, image);
+      for (const auto& result : results) {
+        SaveVirtualCameraFrameResult(config, result, output_root,
+                                     path.filename().string());
+      }
+    }
+  };
+
+  if (config.virtual_camera_parallelism <= 1) {
+    for (const auto& input : source_inputs) {
+      process_source_camera(input);
+    }
+  } else {
+    std::vector<std::function<void()>> jobs;
+    jobs.reserve(source_inputs.size());
+    for (const auto& input : source_inputs) {
+      jobs.push_back([process_source_camera, input]() {
+        process_source_camera(input);
+      });
+    }
+    RunJobs(jobs, config.virtual_camera_parallelism);
+  }
+
+  for (std::size_t index = 0; index < config.virtual_tasks.size(); ++index) {
+    LogInfo(config.showinfo != 0,
+            BuildVirtualTaskDoneMessage(
+                config.virtual_tasks.at(index),
+                ElapsedMilliseconds(task_start_times.at(index))));
+  }
   LogInfo(config.showinfo != 0,
           BuildVirtualCameraPipelineDoneMessage(
               ElapsedMilliseconds(start_time)));

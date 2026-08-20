@@ -64,6 +64,7 @@ foreach(source_file
     src/verifier.cpp
     src/runtime_args.cpp
     src/logging.cpp
+    src/pipeline_orchestrator.cpp
 )
     if(EXISTS ${PROJECT_SOURCE_DIR}/${source_file})
         list(APPEND VIRTUAL_CAMERA_CORE_SOURCES ${source_file})
@@ -118,6 +119,11 @@ endif()
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_pipeline_runner.cpp)
     add_executable(test_pipeline_runner tests/test_pipeline_runner.cpp)
     target_link_libraries(test_pipeline_runner PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_pipeline_orchestrator.cpp)
+    add_executable(test_pipeline_orchestrator tests/test_pipeline_orchestrator.cpp)
+    target_link_libraries(test_pipeline_orchestrator PRIVATE virtual_camera_core)
 endif()
 
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_pipeline_config.cpp)

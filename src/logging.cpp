@@ -31,7 +31,7 @@ std::string BuildPipelineStartMessage(const RuntimeArgs& args,
                                            const PipelineConfig& config) {
   std::ostringstream stream;
   stream << "pipeline start: dataset=" << args.dataset_root
-         << " config=" << args.config_path << " output=" << config.output_root
+         << " config=" << args.config_path << " output=" << args.output_root
          << " debug=" << BoolText(args.debug);
   return stream.str();
 }

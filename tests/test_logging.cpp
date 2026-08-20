@@ -143,7 +143,6 @@ void TestBuildPipelineStartMessageIncludesRuntimeRoots() {
   args.debug = true;
 
   vc::PipelineConfig config;
-  config.output_root = "/tmp/output";
 
   const std::string message =
       vc::BuildPipelineStartMessage(args, config);
@@ -155,7 +154,7 @@ void TestBuildPipelineStartMessageIncludesRuntimeRoots() {
       message.find("config=configs/config_rt024_parallel_run.json") !=
           std::string::npos,
       "message should contain config path");
-  Expect(message.find("output=/tmp/output") != std::string::npos,
+  Expect(message.find("output=/tmp/args-output") != std::string::npos,
          "message should contain output root");
   Expect(message.find("debug=true") != std::string::npos,
          "message should contain debug flag");

@@ -55,11 +55,8 @@ vc::NewIntrinsicConfig MakeSmallNewIntrinsic() {
   return new_intrinsic;
 }
 
-vc::PipelineConfig MakeBaseConfig(const std::filesystem::path& output_root) {
+vc::PipelineConfig MakeBaseConfig() {
   vc::PipelineConfig config;
-  config.dataset_root = "/workspace/GACRT024_1754812994";
-  config.output_root = output_root.string();
-  config.paths.dataset_root = config.dataset_root;
   config.paths.conf_dir_path = "calib_extract";
   config.paths.image_dir_path = "image_raw";
   config.paths.vc_image_dir_path = "image_virtual_camera";
@@ -143,9 +140,7 @@ vc::PipelineConfig MakeTinyFixtureConfig(const std::filesystem::path& root) {
   WriteTinyCalibrationJson(conf_dir / "calib_camera_front_wide_to_car.json");
   WriteTinySyntheticImage(image_dir / "synthetic_front_wide.jpg");
 
-  vc::PipelineConfig config = MakeBaseConfig(root);
-  config.dataset_root = dataset_root.string();
-  config.paths.dataset_root = config.dataset_root;
+  vc::PipelineConfig config = MakeBaseConfig();
   return config;
 }
 
@@ -241,7 +236,7 @@ vc::VirtualCameraTaskConfig MakeDuplicateMapTask(const std::string& map_name,
 
 void TestRunVirtualCameraPipelineSerialStopsAfterFirstFailure() {
   const std::filesystem::path root = MakeTestRoot("serial_fail_fast");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.virtual_camera_parallelism = 1;
   config.virtual_tasks.push_back([]() {
     vc::VirtualCameraTaskConfig task;
@@ -268,7 +263,7 @@ void TestRunVirtualCameraPipelineSerialStopsAfterFirstFailure() {
 
   bool thrown = false;
   try {
-    vc::RunVirtualCameraPipeline(config);
+    vc::RunVirtualCameraPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error&) {
     thrown = true;
   }
@@ -286,7 +281,7 @@ void TestRunVirtualCameraPipelineSerialStopsAfterFirstFailure() {
 
 void TestRunVirtualCameraPipelineRejectsDuplicateJsonOutputs() {
   const std::filesystem::path root = MakeTestRoot("parallel_json_collision");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.virtual_camera_parallelism = 2;
   config.virtual_tasks.push_back(
       MakeDuplicateJsonTask("cam.json", "json_collision_a/", "json_collision_a"));
@@ -295,7 +290,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateJsonOutputs() {
 
   bool thrown = false;
   try {
-    vc::RunVirtualCameraPipeline(config);
+    vc::RunVirtualCameraPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     thrown = message.find("duplicate virtual camera output path") !=
@@ -312,7 +307,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateJsonOutputs() {
 
 void TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs() {
   const std::filesystem::path root = MakeTestRoot("parallel_image_collision");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.virtual_camera_parallelism = 2;
   config.virtual_tasks.push_back(
       MakeDuplicateImageTask("front_wide/", "image_collision_a.json",
@@ -323,7 +318,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs() {
 
   bool thrown = false;
   try {
-    vc::RunVirtualCameraPipeline(config);
+    vc::RunVirtualCameraPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     thrown = message.find("duplicate virtual camera output path") !=
@@ -340,7 +335,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateImageOutputs() {
 
 void TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes() {
   const std::filesystem::path root = MakeTestRoot("parallel_image_no_collision");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.virtual_camera_parallelism = 2;
 
   vc::VirtualCameraTaskConfig left = MakeValidTask();
@@ -364,7 +359,7 @@ void TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes() {
   config.virtual_tasks.push_back(left);
   config.virtual_tasks.push_back(right);
 
-  vc::RunVirtualCameraPipeline(config);
+  vc::RunVirtualCameraPipeline(config, "/workspace/GACRT024_1754812994", root.string());
 
   Expect(std::filesystem::exists(root / "image_virtual_camera" / "shared_output" /
                                  "left_1754812994899000000_50_0.jpg"),
@@ -376,7 +371,7 @@ void TestRunVirtualCameraPipelineAllowsSameSaveDirWithDifferentPrefixes() {
 
 void TestRunVirtualCameraPipelineRejectsCrossTypeNormalizedAlias() {
   const std::filesystem::path root = MakeTestRoot("parallel_cross_type_alias");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.virtual_camera_parallelism = 2;
 
   vc::VirtualCameraTaskConfig map_task = MakeValidTask();
@@ -402,7 +397,7 @@ void TestRunVirtualCameraPipelineRejectsCrossTypeNormalizedAlias() {
 
   bool thrown = false;
   try {
-    vc::RunVirtualCameraPipeline(config);
+    vc::RunVirtualCameraPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     thrown = message.find("duplicate virtual camera output path") !=
@@ -420,7 +415,7 @@ void TestRunVirtualCameraPipelineRejectsCrossTypeNormalizedAlias() {
 
 void TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs() {
   const std::filesystem::path root = MakeTestRoot("parallel_map_collision");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.virtual_camera_parallelism = 2;
   config.virtual_tasks.push_back(MakeDuplicateMapTask(
       "fw110_vc_mapX.bin", "map_collision_a/", "map_collision_a.json",
@@ -431,7 +426,7 @@ void TestRunVirtualCameraPipelineRejectsDuplicateMapOutputs() {
 
   bool thrown = false;
   try {
-    vc::RunVirtualCameraPipeline(config);
+    vc::RunVirtualCameraPipeline(config, "/workspace/GACRT024_1754812994", root.string());
   } catch (const std::runtime_error& error) {
     const std::string message = error.what();
     thrown = message.find("duplicate virtual camera output path") !=
@@ -453,8 +448,9 @@ void TestRunVirtualCameraPipelinePrintsTaskLogsWhenShowinfoEnabled() {
   config.virtual_camera_parallelism = 2;
   config.virtual_tasks.push_back(MakeSmallLoggingTask());
 
-  const std::string output = CaptureStdout([&config]() {
-    vc::RunVirtualCameraPipeline(config);
+  const std::string output = CaptureStdout([&config, &root]() {
+    vc::RunVirtualCameraPipeline(config, (root / "dataset").string(),
+                                 root.string());
   });
 
   const std::size_t pipeline_start =
@@ -491,8 +487,9 @@ void TestRunVirtualCameraPipelineSkipsTaskLogsWhenShowinfoDisabled() {
   config.virtual_camera_parallelism = 2;
   config.virtual_tasks.push_back(MakeSmallLoggingTask());
 
-  const std::string output = CaptureStdout([&config]() {
-    vc::RunVirtualCameraPipeline(config);
+  const std::string output = CaptureStdout([&config, &root]() {
+    vc::RunVirtualCameraPipeline(config, (root / "dataset").string(),
+                                 root.string());
   });
 
   Expect(output.empty(), "disabled showinfo should not print virtual logs");
@@ -500,11 +497,11 @@ void TestRunVirtualCameraPipelineSkipsTaskLogsWhenShowinfoDisabled() {
 
 void TestRunVirtualCameraPipelineWritesOutputsForRealDataset() {
   const std::filesystem::path root = MakeTestRoot("real_dataset");
-  vc::PipelineConfig config = MakeBaseConfig(root);
+  vc::PipelineConfig config = MakeBaseConfig();
   config.virtual_camera_parallelism = 1;
   config.virtual_tasks.push_back(MakeValidTask());
 
-  vc::RunVirtualCameraPipeline(config);
+  vc::RunVirtualCameraPipeline(config, "/workspace/GACRT024_1754812994", root.string());
 
   Expect(std::filesystem::exists(root / "calib_virtual_camera" /
                                  "calib_cam_front_wide_fov110.json"),
@@ -513,6 +510,75 @@ void TestRunVirtualCameraPipelineWritesOutputsForRealDataset() {
          "virtual camera map should exist");
   Expect(std::filesystem::exists(root / "image_virtual_camera" / "front_wide_110"),
          "virtual camera image dir should exist");
+}
+
+void TestBuildVirtualCameraCacheGroupsEntriesByCameraId() {
+  const std::filesystem::path root = MakeTestRoot("cache_by_camera_id");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+
+  vc::VirtualCameraTaskConfig front_wide = MakeSmallLoggingTask();
+  front_wide.file_prefix = "wide_a";
+  front_wide.calib_json = "wide_a.json";
+  front_wide.vc_mapx_name = "wide_a_vc_mapX.bin";
+  front_wide.vc_mapy_name = "wide_a_vc_mapY.bin";
+  front_wide.src2vc_mapx_name = "wide_a_src2vc_mapX.bin";
+  front_wide.src2vc_mapy_name = "wide_a_src2vc_mapY.bin";
+
+  vc::VirtualCameraTaskConfig front_wide_second = MakeSmallLoggingTask();
+  front_wide_second.file_prefix = "wide_b";
+  front_wide_second.calib_json = "wide_b.json";
+  front_wide_second.vc_mapx_name = "wide_b_vc_mapX.bin";
+  front_wide_second.vc_mapy_name = "wide_b_vc_mapY.bin";
+  front_wide_second.src2vc_mapx_name = "wide_b_src2vc_mapX.bin";
+  front_wide_second.src2vc_mapy_name = "wide_b_src2vc_mapY.bin";
+
+  config.virtual_tasks.push_back(front_wide);
+  config.virtual_tasks.push_back(front_wide_second);
+
+  const vc::VirtualCameraCache cache = vc::BuildVirtualCameraCache(config, (root / "dataset").string());
+
+  const auto found = cache.entries_by_camera_id.find(1);
+  Expect(found != cache.entries_by_camera_id.end(),
+         "cache should contain front wide camera id");
+  Expect(found->second.size() == 2,
+         "cache should group both virtual tasks under camera id");
+}
+
+void TestProcessVirtualCameraFrameUsesCameraIdCache() {
+  const std::filesystem::path root = MakeTestRoot("process_frame_by_camera_id");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  config.virtual_tasks.push_back(MakeSmallLoggingTask());
+
+  const vc::VirtualCameraCache cache = vc::BuildVirtualCameraCache(config, (root / "dataset").string());
+  cv::Mat image(8, 16, CV_8UC3, cv::Scalar(9, 8, 7));
+
+  const std::vector<vc::VirtualCameraFrameResult> results =
+      vc::ProcessVirtualCameraFrame(cache, 1, image);
+  const std::vector<vc::VirtualCameraFrameResult> missing_results =
+      vc::ProcessVirtualCameraFrame(cache, 99, image);
+
+  Expect(results.size() == 1,
+         "matching camera id should produce one virtual frame");
+  Expect(results.front().image.rows == 8 && results.front().image.cols == 16,
+         "virtual frame should use configured virtual image size");
+  Expect(results.front().task.file_prefix == "fw110",
+         "virtual frame result should keep task metadata");
+  Expect(missing_results.empty(),
+         "unknown camera id should produce no virtual frames");
+}
+
+void TestSaveVirtualCameraFrameResultWritesExistingOutputLayout() {
+  const std::filesystem::path root = MakeTestRoot("save_frame_result");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  vc::VirtualCameraFrameResult result;
+  result.task = MakeSmallLoggingTask();
+  result.image = cv::Mat(8, 16, CV_8UC3, cv::Scalar(1, 2, 3));
+
+  vc::SaveVirtualCameraFrameResult(config, result, root.string(), "source.jpg");
+
+  Expect(std::filesystem::exists(root / "image_virtual_camera" /
+                                 "front_wide_110" / "fw110_source.jpg"),
+         "virtual frame save function should keep existing output layout");
 }
 
 }  // namespace
@@ -527,5 +593,8 @@ int main() {
   TestRunVirtualCameraPipelinePrintsTaskLogsWhenShowinfoEnabled();
   TestRunVirtualCameraPipelineSkipsTaskLogsWhenShowinfoDisabled();
   TestRunVirtualCameraPipelineWritesOutputsForRealDataset();
+  TestBuildVirtualCameraCacheGroupsEntriesByCameraId();
+  TestProcessVirtualCameraFrameUsesCameraIdCache();
+  TestSaveVirtualCameraFrameResultWritesExistingOutputLayout();
   return 0;
 }

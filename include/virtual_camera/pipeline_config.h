@@ -6,7 +6,6 @@
 namespace vc {
 
 struct OutputPathConfig {
-  std::string dataset_root;
   std::string conf_dir_path;
   std::string image_dir_path;
   std::string vc_image_dir_path;
@@ -80,8 +79,6 @@ struct PipelineConfig {
   int save_virtual_json = 0;
   int save_undistort_json = 0;
   int conf_type = 0;
-  std::string dataset_root;
-  std::string output_root;
   std::vector<VirtualCameraTaskConfig> virtual_tasks;
   std::vector<UndistortTaskConfig> undistort_tasks;
 };

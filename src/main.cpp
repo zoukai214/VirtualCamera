@@ -1,26 +1,125 @@
 #include "virtual_camera/pipeline_config.h"
 #include "virtual_camera/logging.h"
+#include "virtual_camera/pipeline_orchestrator.h"
 #include "virtual_camera/pipeline_runner.h"
 #include "virtual_camera/runtime_args.h"
-#include "virtual_camera/undistort_processor.h"
 #include "virtual_camera/verifier.h"
-#include "virtual_camera/virtual_camera_processor.h"
 
+#include <opencv2/imgcodecs.hpp>
+
+#include <algorithm>
+#include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <stdexcept>
+#include <string>
+#include <vector>
+
+namespace {
+
+std::vector<std::filesystem::path> ListFiles(const std::filesystem::path& dir) {
+  std::vector<std::filesystem::path> files;
+  for (const auto& entry : std::filesystem::directory_iterator(dir)) {
+    if (entry.is_regular_file()) {
+      files.push_back(entry.path());
+    }
+  }
+  std::sort(files.begin(), files.end());
+  return files;
+}
+
+cv::Mat ReadFrame(const std::filesystem::path& path) {
+  const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
+  if (image.empty()) {
+    throw std::runtime_error("failed to read image: " + path.string());
+  }
+  return image;
+}
+
+}  // namespace
 
 int main(int argc, char** argv) {
   try {
     const vc::RuntimeArgs args = vc::ParseRuntimeArgs(argc, argv);
     vc::PipelineConfig config = vc::LoadPipelineConfig(args.config_path);
-    vc::ApplyRuntimeArgs(args, &config);
     vc::LogInfo(config.showinfo != 0,
                 vc::BuildPipelineStartMessage(args, config));
 
     vc::RunTopLevelPipelines(
         config,
-        [&config]() { vc::RunUndistortPipeline(config); },
-        [&config]() { vc::RunVirtualCameraPipeline(config); });
+        [&config, &args]() {
+          const auto start_time = std::chrono::steady_clock::now();
+          vc::LogInfo(config.showinfo != 0,
+                      vc::BuildUndistortPipelineStartMessage(config));
+
+          const vc::PipelineOrchestrator orchestrator(
+              args.config_path, args.dataset_root,
+              vc::PipelineSelection::kUndistort);
+          for (const auto& task : config.undistort_tasks) {
+            vc::LogInfo(config.showinfo != 0,
+                        vc::BuildUndistortTaskStartMessage(task));
+          }
+
+          orchestrator.SaveUndistortArtifacts(args.output_root);
+
+          for (const auto& source_camera :
+               orchestrator.UndistortSourceInputs()) {
+            const std::filesystem::path input_dir =
+                std::filesystem::path(args.dataset_root) /
+                config.paths.image_dir_path / source_camera.image_dir;
+            for (const auto& image_path : ListFiles(input_dir)) {
+              const cv::Mat image = ReadFrame(image_path);
+              orchestrator.ProcessUndistortFrame(
+                  source_camera.camera_id, image, args.output_root,
+                  image_path.filename().string());
+            }
+          }
+
+          for (const auto& task : config.undistort_tasks) {
+            vc::LogInfo(config.showinfo != 0,
+                        vc::BuildUndistortTaskDoneMessage(
+                            task, vc::ElapsedMilliseconds(start_time)));
+          }
+          vc::LogInfo(config.showinfo != 0,
+                      vc::BuildUndistortPipelineDoneMessage(
+                          vc::ElapsedMilliseconds(start_time)));
+        },
+        [&config, &args]() {
+          const auto start_time = std::chrono::steady_clock::now();
+          vc::LogInfo(config.showinfo != 0,
+                      vc::BuildVirtualCameraPipelineStartMessage(config));
+
+          const vc::PipelineOrchestrator orchestrator(
+              args.config_path, args.dataset_root,
+              vc::PipelineSelection::kVirtualCamera);
+          for (const auto& task : config.virtual_tasks) {
+            vc::LogInfo(config.showinfo != 0,
+                        vc::BuildVirtualTaskStartMessage(task));
+          }
+
+          orchestrator.SaveVirtualCameraArtifacts(args.output_root);
+
+          for (const auto& source_camera : orchestrator.VirtualSourceInputs()) {
+            const std::filesystem::path input_dir =
+                std::filesystem::path(args.dataset_root) /
+                config.paths.image_dir_path / source_camera.image_dir;
+            for (const auto& image_path : ListFiles(input_dir)) {
+              const cv::Mat image = ReadFrame(image_path);
+              orchestrator.ProcessVirtualCameraFrame(
+                  source_camera.camera_id, image, args.output_root,
+                  image_path.filename().string());
+            }
+          }
+
+          for (const auto& task : config.virtual_tasks) {
+            vc::LogInfo(config.showinfo != 0,
+                        vc::BuildVirtualTaskDoneMessage(
+                            task, vc::ElapsedMilliseconds(start_time)));
+          }
+          vc::LogInfo(config.showinfo != 0,
+                      vc::BuildVirtualCameraPipelineDoneMessage(
+                          vc::ElapsedMilliseconds(start_time)));
+        });
 
     const vc::VerifyResult result = vc::MaybeVerifyOutputs(
         args, config,
