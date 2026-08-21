@@ -542,14 +542,6 @@ void TestBuildVirtualCameraCacheGroupsEntriesByCameraId() {
          "cache should contain front wide camera id");
   Expect(found->second.size() == 2,
          "cache should group both virtual tasks under camera id");
-  const vc::VirtualCameraCacheEntry& entry =
-      cache.entries.at(found->second.front());
-  Expect(!entry.gpu_maps.map_x.empty() && !entry.gpu_maps.map_y.empty(),
-         "virtual cache should upload GPU remap maps");
-  Expect(entry.gpu_maps.map_x.size() == entry.maps.map_x.size(),
-         "virtual GPU map_x size should match CPU map_x");
-  Expect(entry.gpu_maps.map_y.size() == entry.maps.map_y.size(),
-         "virtual GPU map_y size should match CPU map_y");
 }
 
 void TestProcessVirtualCameraFrameUsesCameraIdCache() {

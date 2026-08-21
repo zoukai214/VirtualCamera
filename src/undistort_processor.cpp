@@ -1,7 +1,6 @@
 #include "virtual_camera/undistort_processor.h"
 
 #include "virtual_camera/calibration_loader.h"
-#include "virtual_camera/cuda_remap.h"
 #include "virtual_camera/jobs.h"
 #include "virtual_camera/json_utils.h"
 #include "virtual_camera/json_writer.h"
@@ -10,6 +9,8 @@
 #include "virtual_camera/types.h"
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -64,7 +65,6 @@ UndistortCacheEntry BuildUndistortCacheEntry(const PipelineConfig& config,
   entry.camera_id = CameraIdFromIntrinsicKey(task.intri_key);
   entry.calibration = calibration;
   entry.maps = maps;
-  entry.gpu_maps = UploadCudaRemapMaps(entry.maps.map_x, entry.maps.map_y);
   return entry;
 }
 
@@ -159,7 +159,8 @@ std::vector<UndistortFrameResult> ProcessUndistortFrame(
     const UndistortCacheEntry& entry = cache.entries.at(entry_index);
     UndistortFrameResult result;
     result.task = entry.task;
-    result.image = GpuRemap(image, entry.gpu_maps);
+    cv::remap(image, result.image, entry.maps.map_x, entry.maps.map_y,
+              cv::INTER_LINEAR);
     results.push_back(std::move(result));
   }
   return results;
@@ -189,7 +190,6 @@ void RunUndistortPipeline(const PipelineConfig& config,
                           const std::string& output_root) {
   const auto start_time = std::chrono::steady_clock::now();
   LogInfo(config.showinfo != 0, BuildUndistortPipelineStartMessage(config));
-  RequireCudaRemapAvailable();
 
   ValidateUndistortOutputs(config, output_root);
 

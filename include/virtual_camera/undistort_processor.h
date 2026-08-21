@@ -1,6 +1,5 @@
 #pragma once
 
-#include "virtual_camera/cuda_remap.h"
 #include "virtual_camera/pipeline_config.h"
 #include "virtual_camera/remap_generator.h"
 #include "virtual_camera/types.h"
@@ -17,7 +16,6 @@ struct UndistortCacheEntry {
   int camera_id = 0;
   CalibrationParam calibration;
   UndistortMaps maps;
-  CudaRemapMaps gpu_maps;
 };
 
 struct UndistortCache {
