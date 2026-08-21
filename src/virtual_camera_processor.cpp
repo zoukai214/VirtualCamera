@@ -1,6 +1,7 @@
 #include "virtual_camera/virtual_camera_processor.h"
 
 #include "virtual_camera/calibration_loader.h"
+#include "virtual_camera/cuda_remap.h"
 #include "virtual_camera/jobs.h"
 #include "virtual_camera/json_utils.h"
 #include "virtual_camera/json_writer.h"
@@ -9,8 +10,6 @@
 #include "virtual_camera/remap_generator.h"
 
 #include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -93,6 +92,7 @@ VirtualCameraCacheEntry BuildVirtualCameraCacheEntry(
   VirtualCameraCacheEntry entry;
   entry.task = task;
   entry.maps = maps;
+  entry.gpu_maps = UploadCudaRemapMaps(entry.maps.map_x, entry.maps.map_y);
   entry.virtual_intrinsic = generator.virtual_intrinsic();
   entry.virtual_extrinsic = generator.virtual_extrinsic();
   entry.dist_data = std::vector<double>(8, 0.0);
@@ -212,8 +212,7 @@ std::vector<VirtualCameraFrameResult> ProcessVirtualCameraFrame(
     const VirtualCameraCacheEntry& entry = cache.entries.at(entry_index);
     VirtualCameraFrameResult result;
     result.task = entry.task;
-    cv::remap(image, result.image, entry.maps.map_x, entry.maps.map_y,
-              cv::INTER_LINEAR);
+    result.image = GpuRemap(image, entry.gpu_maps);
     results.push_back(std::move(result));
   }
   return results;
@@ -244,6 +243,7 @@ void RunVirtualCameraPipeline(const PipelineConfig& config,
                               const std::string& output_root) {
   const auto start_time = std::chrono::steady_clock::now();
   LogInfo(config.showinfo != 0, BuildVirtualCameraPipelineStartMessage(config));
+  RequireCudaRemapAvailable();
 
   ValidateVirtualCameraOutputs(config, output_root);
 

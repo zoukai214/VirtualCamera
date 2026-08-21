@@ -1,5 +1,6 @@
 #pragma once
 
+#include "virtual_camera/cuda_remap.h"
 #include "virtual_camera/pipeline_config.h"
 #include "virtual_camera/remap_generator.h"
 
@@ -14,6 +15,7 @@ namespace vc {
 struct VirtualCameraCacheEntry {
   VirtualCameraTaskConfig task;
   VirtualCameraMaps maps;
+  CudaRemapMaps gpu_maps;
   Eigen::Matrix3d virtual_intrinsic = Eigen::Matrix3d::Identity();
   Eigen::Matrix4d virtual_extrinsic = Eigen::Matrix4d::Identity();
   std::vector<double> dist_data;

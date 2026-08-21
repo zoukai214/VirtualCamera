@@ -274,6 +274,13 @@ void TestBuildUndistortCacheIndexesEntriesByCameraId() {
          "undistort cache should infer front wide camera id");
   Expect(found->second.size() == 1,
          "undistort cache should keep one entry for camera id");
+  const vc::UndistortCacheEntry& entry = cache.entries.at(found->second.front());
+  Expect(!entry.gpu_maps.map_x.empty() && !entry.gpu_maps.map_y.empty(),
+         "undistort cache should upload GPU remap maps");
+  Expect(entry.gpu_maps.map_x.size() == entry.maps.map_x.size(),
+         "undistort GPU map_x size should match CPU map_x");
+  Expect(entry.gpu_maps.map_y.size() == entry.maps.map_y.size(),
+         "undistort GPU map_y size should match CPU map_y");
 }
 
 void TestProcessUndistortFrameUsesCameraIdCache() {
