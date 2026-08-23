@@ -12,6 +12,8 @@ set(EIGEN_ROOT ${THIRD_PARTY_ROOT}/eigen)
 set(OPENCV_CUDA_ROOT /opt/opencv-cuda)
 set(NLOHMANN_JSON_ROOT ${THIRD_PARTY_ROOT}/nlohmann_json/include)
 
+find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${EIGEN_ROOT}/include/eigen3)
 include_directories(${OPENCV_CUDA_ROOT}/include/opencv4)
@@ -41,6 +43,7 @@ foreach(source_file
 endforeach()
 
 add_library(virtual_camera_core ${VIRTUAL_CAMERA_CORE_SOURCES})
+set_target_properties(virtual_camera_core PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_link_libraries(virtual_camera_core PUBLIC
     opencv_core
@@ -58,6 +61,33 @@ target_link_libraries(virtual_camera_core PUBLIC
 if(EXISTS ${PROJECT_SOURCE_DIR}/src/main.cpp)
     add_executable(virtual_camera_tool src/main.cpp)
     target_link_libraries(virtual_camera_tool PRIVATE virtual_camera_core)
+endif()
+
+if(EXISTS ${PROJECT_SOURCE_DIR}/src/python_bindings.cpp)
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -m pybind11 --includes
+        OUTPUT_VARIABLE PYBIND11_INCLUDE_FLAGS
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    separate_arguments(PYBIND11_INCLUDE_FLAGS)
+    set(PYBIND11_INCLUDE_DIRS)
+    foreach(include_flag ${PYBIND11_INCLUDE_FLAGS})
+        string(REGEX REPLACE "^-I" "" include_dir "${include_flag}")
+        list(APPEND PYBIND11_INCLUDE_DIRS "${include_dir}")
+    endforeach()
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"
+        OUTPUT_VARIABLE PYTHON_EXTENSION_SUFFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    add_library(virtual_camera MODULE src/python_bindings.cpp)
+    target_include_directories(virtual_camera PRIVATE ${PYBIND11_INCLUDE_DIRS})
+    target_link_libraries(virtual_camera PRIVATE virtual_camera_core)
+    set_target_properties(virtual_camera PROPERTIES
+        PREFIX ""
+        SUFFIX "${PYTHON_EXTENSION_SUFFIX}"
+        LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/python"
+    )
 endif()
 
 if(EXISTS ${PROJECT_SOURCE_DIR}/tests/test_task_builder.cpp)
