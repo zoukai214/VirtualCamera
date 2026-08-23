@@ -93,7 +93,7 @@ def write_config_json(root):
         "vc_gdcbin_dir_path": "vc_gdcbin_dir_path",
         "showinfo": 0,
         "process_virtual_camera": 1,
-        "process_undistort": 0,
+        "process_undistort": 1,
         "undistort_image": 0,
         "distort_model": 0,
         "virtual_camera_configs": [{
@@ -133,7 +133,22 @@ def write_config_json(root):
                 "z": 0.0,
             },
         }],
-        "undistort_configs": [],
+        "undistort_configs": [{
+            "conf_json": "calib_camera_front_wide_to_car.json",
+            "intri_key": "camera-front-wide",
+            "extri_key": "camera-front-wide-to-car",
+            "image_dir": "front_wide/",
+            "new_intrinsic": {
+                "fov": 110.0,
+                "focal_u": 8.0,
+                "center_u": 512.0,
+                "focal_v": 8.0,
+                "center_v": 256.0,
+                "image_width": 16,
+                "image_height": 8,
+                "center": 1,
+            },
+        }],
         "task_parallelism": 1,
         "undistort_parallelism": 1,
         "virtual_camera_parallelism": 1,
@@ -150,25 +165,36 @@ def main():
     dataset_root = make_dataset(root)
     config_path = write_config_json(root)
     orchestrator = virtual_camera.PipelineOrchestrator(
-        str(config_path), str(dataset_root), "virtual_camera"
+        str(config_path), str(dataset_root), "all"
     )
 
     sources = orchestrator.virtual_source_inputs()
     expect(sources == [{"camera_id": 1, "image_dir": "front_wide/"}],
            "virtual source inputs should be available from Python")
+    undistort_sources = orchestrator.undistort_source_inputs()
+    expect(undistort_sources == [{"camera_id": 1, "image_dir": "front_wide/"}],
+           "undistort source inputs should be available from Python")
 
     orchestrator.save_virtual_camera_artifacts(str(root))
+    orchestrator.save_undistort_artifacts(str(root))
     source_image = dataset_root / "image_raw" / "front_wide" / "synthetic_front_wide.ppm"
     orchestrator.process_and_save_virtual_camera_frame(
+        1, str(source_image), str(root)
+    )
+    orchestrator.process_and_save_undistort_frame(
         1, str(source_image), str(root)
     )
 
     expect((root / "calib_virtual_camera" / "calib_cam_front_wide_fov110.json").exists(),
            "Python workflow should save virtual json")
+    expect((root / "calib_undistortion" / "calib_camera_front_wide_to_car.json").exists(),
+           "Python workflow should save undistort json")
     expect((root / "vc_gdcbin_dir_path" / "fw110_vc_mapX.bin").exists(),
            "Python workflow should save virtual map")
     expect((root / "image_virtual_camera" / "front_wide_110" / "fw110_synthetic_front_wide.ppm").exists(),
            "Python workflow should save virtual image")
+    expect((root / "image_undistortion" / "front_wide" / "synthetic_front_wide.ppm").exists(),
+           "Python workflow should save undistort image")
 
 
 if __name__ == "__main__":

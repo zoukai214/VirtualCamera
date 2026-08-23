@@ -48,8 +48,20 @@ class PyPipelineOrchestrator {
     return inputs;
   }
 
+  std::vector<py::dict> UndistortSourceInputs() const {
+    std::vector<py::dict> inputs;
+    for (const auto& input : orchestrator_.UndistortSourceInputs()) {
+      inputs.push_back(SourceInputToDict(input));
+    }
+    return inputs;
+  }
+
   void SaveVirtualCameraArtifacts(const std::string& output_root) const {
     orchestrator_.SaveVirtualCameraArtifacts(output_root);
+  }
+
+  void SaveUndistortArtifacts(const std::string& output_root) const {
+    orchestrator_.SaveUndistortArtifacts(output_root);
   }
 
   void ProcessAndSaveVirtualCameraFrame(
@@ -62,6 +74,19 @@ class PyPipelineOrchestrator {
     const std::vector<vc::VirtualCameraFrameResult> results =
         orchestrator_.ProcessVirtualCameraFrame(camera_id, image);
     orchestrator_.SaveVirtualCameraFrameResults(
+        results, output_root, std::filesystem::path(image_path).filename().string());
+  }
+
+  void ProcessAndSaveUndistortFrame(int camera_id,
+                                    const std::string& image_path,
+                                    const std::string& output_root) const {
+    const cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
+    if (image.empty()) {
+      throw std::runtime_error("failed to read image: " + image_path);
+    }
+    const std::vector<vc::UndistortFrameResult> results =
+        orchestrator_.ProcessUndistortFrame(camera_id, image);
+    orchestrator_.SaveUndistortFrameResults(
         results, output_root, std::filesystem::path(image_path).filename().string());
   }
 
@@ -78,9 +103,16 @@ PYBIND11_MODULE(virtual_camera, module) {
            py::arg("selection") = "all")
       .def("virtual_source_inputs",
            &PyPipelineOrchestrator::VirtualSourceInputs)
+      .def("undistort_source_inputs",
+           &PyPipelineOrchestrator::UndistortSourceInputs)
       .def("save_virtual_camera_artifacts",
            &PyPipelineOrchestrator::SaveVirtualCameraArtifacts)
+      .def("save_undistort_artifacts",
+           &PyPipelineOrchestrator::SaveUndistortArtifacts)
       .def("process_and_save_virtual_camera_frame",
            &PyPipelineOrchestrator::ProcessAndSaveVirtualCameraFrame,
+           py::arg("camera_id"), py::arg("image_path"), py::arg("output_root"))
+      .def("process_and_save_undistort_frame",
+           &PyPipelineOrchestrator::ProcessAndSaveUndistortFrame,
            py::arg("camera_id"), py::arg("image_path"), py::arg("output_root"));
 }
