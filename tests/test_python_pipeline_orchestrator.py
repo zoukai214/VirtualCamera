@@ -178,11 +178,11 @@ def main():
     orchestrator.save_virtual_camera_artifacts(str(root))
     orchestrator.save_undistort_artifacts(str(root))
     source_image = dataset_root / "image_raw" / "front_wide" / "synthetic_front_wide.ppm"
-    orchestrator.process_and_save_virtual_camera_frame(
-        1, str(source_image), str(root)
+    virtual_result_id = orchestrator.process_virtual_camera_frame(
+        1, str(source_image)
     )
-    orchestrator.process_and_save_undistort_frame(
-        1, str(source_image), str(root)
+    undistort_result_id = orchestrator.process_undistort_frame(
+        1, str(source_image)
     )
 
     expect((root / "calib_virtual_camera" / "calib_cam_front_wide_fov110.json").exists(),
@@ -191,6 +191,18 @@ def main():
            "Python workflow should save undistort json")
     expect((root / "vc_gdcbin_dir_path" / "fw110_vc_mapX.bin").exists(),
            "Python workflow should save virtual map")
+    expect(not (root / "image_virtual_camera" / "front_wide_110" / "fw110_synthetic_front_wide.ppm").exists(),
+           "Python virtual process should not save image")
+    expect(not (root / "image_undistortion" / "front_wide" / "synthetic_front_wide.ppm").exists(),
+           "Python undistort process should not save image")
+
+    orchestrator.save_virtual_camera_frame_results(
+        virtual_result_id, str(root), source_image.name
+    )
+    orchestrator.save_undistort_frame_results(
+        undistort_result_id, str(root), source_image.name
+    )
+
     expect((root / "image_virtual_camera" / "front_wide_110" / "fw110_synthetic_front_wide.ppm").exists(),
            "Python workflow should save virtual image")
     expect((root / "image_undistortion" / "front_wide" / "synthetic_front_wide.ppm").exists(),
