@@ -3,8 +3,6 @@
 #include "virtual_camera/virtual_camera_processor.h"
 
 #include <opencv2/core/utility.hpp>
-#include <opencv2/imgcodecs.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -118,12 +116,8 @@ std::vector<std::filesystem::path> ListFiles(const std::filesystem::path& dir) {
   return files;
 }
 
-cv::Mat ReadFrame(const std::filesystem::path& path) {
-  const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
-  if (image.empty()) {
-    throw std::runtime_error("failed to read image: " + path.string());
-  }
-  return image;
+vc::GpuImage ReadFrame(const std::filesystem::path& path) {
+  return vc::ReadImage(path.string());
 }
 
 std::vector<SourceCameraInput> BuildUndistortSourceInputs(
@@ -163,7 +157,7 @@ void BenchmarkUndistortFrames(
         std::filesystem::path(dataset_root) / config.paths.image_dir_path /
         source_camera.image_dir;
     for (const auto& image_path : ListFiles(input_dir)) {
-      cv::Mat image;
+      vc::GpuImage image;
       {
         ScopedTimer timer(&read_timing->total_ms);
         image = ReadFrame(image_path);
@@ -202,7 +196,7 @@ void BenchmarkVirtualCameraFrames(
         std::filesystem::path(dataset_root) / config.paths.image_dir_path /
         source_camera.image_dir;
     for (const auto& image_path : ListFiles(input_dir)) {
-      cv::Mat image;
+      vc::GpuImage image;
       {
         ScopedTimer timer(&read_timing->total_ms);
         image = ReadFrame(image_path);

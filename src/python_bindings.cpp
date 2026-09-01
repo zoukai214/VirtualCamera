@@ -1,6 +1,5 @@
 #include "virtual_camera/pipeline_orchestrator.h"
 
-#include <opencv2/imgcodecs.hpp>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -65,20 +64,21 @@ class PyPipelineOrchestrator {
     orchestrator_.SaveUndistortArtifacts(output_root);
   }
 
+  vc::GpuImage ReadImage(const std::string& image_path) const {
+    return orchestrator_.ReadImage(image_path);
+  }
+
   void ProcessAndSaveVirtualCameraFrame(
       int camera_id, const std::string& image_path,
       const std::string& output_root) const {
-    const int result_id = ProcessVirtualCameraFrame(camera_id, image_path);
+    const vc::GpuImage image = ReadImage(image_path);
+    const int result_id = ProcessVirtualCameraFrame(camera_id, image);
     SaveVirtualCameraFrameResults(
         result_id, output_root, std::filesystem::path(image_path).filename().string());
   }
 
   int ProcessVirtualCameraFrame(int camera_id,
-                                const std::string& image_path) const {
-    const cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
-    if (image.empty()) {
-      throw std::runtime_error("failed to read image: " + image_path);
-    }
+                                const vc::GpuImage& image) const {
     const int result_id = next_result_id_++;
     virtual_results_by_id_[result_id] =
         orchestrator_.ProcessVirtualCameraFrame(camera_id, image);
@@ -99,16 +99,13 @@ class PyPipelineOrchestrator {
   void ProcessAndSaveUndistortFrame(int camera_id,
                                     const std::string& image_path,
                                     const std::string& output_root) const {
-    const int result_id = ProcessUndistortFrame(camera_id, image_path);
+    const vc::GpuImage image = ReadImage(image_path);
+    const int result_id = ProcessUndistortFrame(camera_id, image);
     SaveUndistortFrameResults(
         result_id, output_root, std::filesystem::path(image_path).filename().string());
   }
 
-  int ProcessUndistortFrame(int camera_id, const std::string& image_path) const {
-    const cv::Mat image = cv::imread(image_path, cv::IMREAD_COLOR);
-    if (image.empty()) {
-      throw std::runtime_error("failed to read image: " + image_path);
-    }
+  int ProcessUndistortFrame(int camera_id, const vc::GpuImage& image) const {
     const int result_id = next_result_id_++;
     undistort_results_by_id_[result_id] =
         orchestrator_.ProcessUndistortFrame(camera_id, image);
@@ -138,6 +135,8 @@ class PyPipelineOrchestrator {
 }  // namespace
 
 PYBIND11_MODULE(virtual_camera, module) {
+  py::class_<vc::GpuImage>(module, "GpuImage");
+
   py::class_<PyPipelineOrchestrator>(module, "PipelineOrchestrator")
       .def(py::init<const std::string&, const std::string&, const std::string&>(),
            py::arg("config_path"), py::arg("dataset_root"),
@@ -150,9 +149,11 @@ PYBIND11_MODULE(virtual_camera, module) {
            &PyPipelineOrchestrator::SaveVirtualCameraArtifacts)
       .def("save_undistort_artifacts",
            &PyPipelineOrchestrator::SaveUndistortArtifacts)
+      .def("read_image", &PyPipelineOrchestrator::ReadImage,
+           py::arg("image_path"))
       .def("process_virtual_camera_frame",
            &PyPipelineOrchestrator::ProcessVirtualCameraFrame,
-           py::arg("camera_id"), py::arg("image_path"))
+           py::arg("camera_id"), py::arg("image"))
       .def("save_virtual_camera_frame_results",
            &PyPipelineOrchestrator::SaveVirtualCameraFrameResults,
            py::arg("result_id"), py::arg("output_root"), py::arg("input_filename"))
@@ -161,7 +162,7 @@ PYBIND11_MODULE(virtual_camera, module) {
            py::arg("camera_id"), py::arg("image_path"), py::arg("output_root"))
       .def("process_undistort_frame",
            &PyPipelineOrchestrator::ProcessUndistortFrame,
-           py::arg("camera_id"), py::arg("image_path"))
+           py::arg("camera_id"), py::arg("image"))
       .def("save_undistort_frame_results",
            &PyPipelineOrchestrator::SaveUndistortFrameResults,
            py::arg("result_id"), py::arg("output_root"), py::arg("input_filename"))

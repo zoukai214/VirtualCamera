@@ -291,9 +291,13 @@ orchestrator.save_undistort_artifacts(output_root)
 分离式处理和保存虚拟相机图片：
 
 ```python
+image = orchestrator.read_image(
+    "/workspace/GACRT024_1754812994/image_raw/front_wide/source.jpg",
+)
+
 result_id = orchestrator.process_virtual_camera_frame(
     camera_id=1,
-    image_path="/workspace/GACRT024_1754812994/image_raw/front_wide/source.jpg",
+    image=image,
 )
 
 orchestrator.save_virtual_camera_frame_results(
@@ -306,9 +310,13 @@ orchestrator.save_virtual_camera_frame_results(
 分离式处理和保存去畸变图片：
 
 ```python
+image = orchestrator.read_image(
+    "/workspace/GACRT024_1754812994/image_raw/front_wide/source.jpg",
+)
+
 result_id = orchestrator.process_undistort_frame(
     camera_id=1,
-    image_path="/workspace/GACRT024_1754812994/image_raw/front_wide/source.jpg",
+    image=image,
 )
 
 orchestrator.save_undistort_frame_results(
@@ -334,8 +342,9 @@ orchestrator.process_and_save_undistort_frame(
 )
 ```
 
-推荐新代码优先使用分离式接口，便于和 C++ 中的 `Process*Frame` /
-`Save*FrameResults` 流程保持一致。
+`read_image()` 会读取路径并上传为不暴露内部实现的 `GpuImage`。两个
+`process_*_frame()` 只接收该 GPU 图片；结果也保留在 GPU，直到
+`save_*_frame_results()` 写文件时才下载到 CPU。
 
 ## Python 全流程示例
 
@@ -365,9 +374,10 @@ for source in orchestrator.virtual_source_inputs():
     for image_path in sorted(image_dir.iterdir()):
         if not image_path.is_file():
             continue
+        image = orchestrator.read_image(str(image_path))
         result_id = orchestrator.process_virtual_camera_frame(
             source["camera_id"],
-            str(image_path),
+            image,
         )
         orchestrator.save_virtual_camera_frame_results(
             result_id,
@@ -380,9 +390,10 @@ for source in orchestrator.undistort_source_inputs():
     for image_path in sorted(image_dir.iterdir()):
         if not image_path.is_file():
             continue
+        image = orchestrator.read_image(str(image_path))
         result_id = orchestrator.process_undistort_frame(
             source["camera_id"],
-            str(image_path),
+            image,
         )
         orchestrator.save_undistort_frame_results(
             result_id,

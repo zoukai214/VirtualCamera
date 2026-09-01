@@ -4,8 +4,6 @@
 #include "virtual_camera/undistort_processor.h"
 #include "virtual_camera/virtual_camera_processor.h"
 
-#include <opencv2/core.hpp>
-
 #include <string>
 #include <vector>
 
@@ -34,10 +32,11 @@ class PipelineOrchestrator {
   void SaveUndistortArtifacts(const std::string& output_root) const;
   void SaveVirtualCameraArtifacts(const std::string& output_root) const;
 
+  GpuImage ReadImage(const std::string& image_path) const;
   std::vector<UndistortFrameResult> ProcessUndistortFrame(
-      int camera_id, const cv::Mat& image) const;
+      int camera_id, const GpuImage& image) const;
   std::vector<VirtualCameraFrameResult> ProcessVirtualCameraFrame(
-      int camera_id, const cv::Mat& image) const;
+      int camera_id, const GpuImage& image) const;
   void SaveUndistortFrameResults(
       const std::vector<UndistortFrameResult>& results,
       const std::string& output_root, const std::string& input_filename) const;
