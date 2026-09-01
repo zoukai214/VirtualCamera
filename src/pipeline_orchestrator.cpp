@@ -78,14 +78,18 @@ void PipelineOrchestrator::SaveVirtualCameraArtifacts(
   SaveVirtualCameraCacheArtifacts(config_, virtual_camera_cache_, output_root);
 }
 
+GpuImage PipelineOrchestrator::ReadImage(const std::string& image_path) const {
+  return vc::ReadImage(image_path);
+}
+
 std::vector<UndistortFrameResult> PipelineOrchestrator::ProcessUndistortFrame(
-    int camera_id, const cv::Mat& image) const {
+    int camera_id, const GpuImage& image) const {
   return vc::ProcessUndistortFrame(undistort_cache_, camera_id, image);
 }
 
 std::vector<VirtualCameraFrameResult>
 PipelineOrchestrator::ProcessVirtualCameraFrame(
-    int camera_id, const cv::Mat& image) const {
+    int camera_id, const GpuImage& image) const {
   return vc::ProcessVirtualCameraFrame(virtual_camera_cache_, camera_id, image);
 }
 

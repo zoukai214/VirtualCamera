@@ -1,6 +1,7 @@
 #include "virtual_camera/cuda_remap.h"
 
 #include <opencv2/cudawarping.hpp>
+#include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
 #include <stdexcept>
@@ -31,7 +32,21 @@ CudaRemapMaps UploadCudaRemapMaps(const cv::Mat& map_x, const cv::Mat& map_y) {
   return maps;
 }
 
-cv::Mat GpuRemap(const cv::Mat& image, const CudaRemapMaps& maps) {
+GpuImage ReadImage(const std::string& image_path) {
+  RequireCudaRemapAvailable();
+
+  const cv::Mat cpu_image = cv::imread(image_path, cv::IMREAD_COLOR);
+  if (cpu_image.empty()) {
+    throw std::runtime_error("failed to read image: " + image_path);
+  }
+
+  GpuImage image;
+  image.image.upload(cpu_image);
+  return image;
+}
+
+cv::cuda::GpuMat GpuRemap(const cv::cuda::GpuMat& image,
+                          const CudaRemapMaps& maps) {
   RequireCudaRemapAvailable();
   if (image.empty()) {
     throw std::runtime_error("CUDA remap image must not be empty");
@@ -40,13 +55,19 @@ cv::Mat GpuRemap(const cv::Mat& image, const CudaRemapMaps& maps) {
     throw std::runtime_error("CUDA remap maps must be uploaded before remap");
   }
 
+  cv::cuda::GpuMat gpu_output;
+  cv::cuda::remap(image, gpu_output, maps.map_x, maps.map_y, cv::INTER_LINEAR);
+  return gpu_output;
+}
+
+cv::Mat GpuRemap(const cv::Mat& image, const CudaRemapMaps& maps) {
+  if (image.empty()) {
+    throw std::runtime_error("CUDA remap image must not be empty");
+  }
+
   cv::cuda::GpuMat gpu_input;
   gpu_input.upload(image);
-
-  cv::cuda::GpuMat gpu_output;
-  cv::cuda::remap(gpu_input, gpu_output, maps.map_x, maps.map_y,
-                  cv::INTER_LINEAR);
-
+  const cv::cuda::GpuMat gpu_output = GpuRemap(gpu_input, maps);
   cv::Mat output;
   gpu_output.download(output);
   return output;

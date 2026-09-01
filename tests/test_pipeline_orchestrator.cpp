@@ -200,8 +200,8 @@ void TestPipelineOrchestratorSavesAndProcessesFrames() {
 
   const std::filesystem::path source_image =
       root / "dataset" / "image_raw" / "front_wide" / "synthetic_front_wide.jpg";
-  const cv::Mat image = cv::imread(source_image.string(), cv::IMREAD_COLOR);
-  Expect(!image.empty(), "fixture image should load");
+  const vc::GpuImage image = orchestrator.ReadImage(source_image.string());
+  Expect(!image.image.empty(), "fixture image should upload to GPU");
 
   const std::vector<vc::UndistortFrameResult> undistort_results =
       orchestrator.ProcessUndistortFrame(1, image);
@@ -212,6 +212,10 @@ void TestPipelineOrchestratorSavesAndProcessesFrames() {
          "undistort processing should return one frame result");
   Expect(virtual_results.size() == 1,
          "virtual camera processing should return one frame result");
+  Expect(!undistort_results.front().image.image.empty(),
+         "undistort processing should keep result on GPU");
+  Expect(!virtual_results.front().image.image.empty(),
+         "virtual camera processing should keep result on GPU");
   Expect(!std::filesystem::exists(root / "image_undistortion" / "front_wide" /
                                   "synthetic_front_wide.jpg"),
          "undistort processing should not save a frame");

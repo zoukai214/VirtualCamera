@@ -178,11 +178,14 @@ def main():
     orchestrator.save_virtual_camera_artifacts(str(root))
     orchestrator.save_undistort_artifacts(str(root))
     source_image = dataset_root / "image_raw" / "front_wide" / "synthetic_front_wide.ppm"
+    image = orchestrator.read_image(str(source_image))
+    expect(isinstance(image, virtual_camera.GpuImage),
+           "Python read_image should return a GPU image")
     virtual_result_id = orchestrator.process_virtual_camera_frame(
-        1, str(source_image)
+        1, image
     )
     undistort_result_id = orchestrator.process_undistort_frame(
-        1, str(source_image)
+        1, image
     )
 
     expect((root / "calib_virtual_camera" / "calib_cam_front_wide_fov110.json").exists(),
@@ -207,6 +210,20 @@ def main():
            "Python workflow should save virtual image")
     expect((root / "image_undistortion" / "front_wide" / "synthetic_front_wide.ppm").exists(),
            "Python workflow should save undistort image")
+
+    convenience_root = root / "convenience"
+    orchestrator.process_and_save_virtual_camera_frame(
+        1, str(source_image), str(convenience_root)
+    )
+    orchestrator.process_and_save_undistort_frame(
+        1, str(source_image), str(convenience_root)
+    )
+    expect((convenience_root / "image_virtual_camera" / "front_wide_110" /
+            "fw110_synthetic_front_wide.ppm").exists(),
+           "Python virtual convenience API should read, process, and save")
+    expect((convenience_root / "image_undistortion" / "front_wide" /
+            "synthetic_front_wide.ppm").exists(),
+           "Python undistort convenience API should read, process, and save")
 
 
 if __name__ == "__main__":

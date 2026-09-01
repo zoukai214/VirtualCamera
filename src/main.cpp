@@ -5,8 +5,6 @@
 #include "virtual_camera/runtime_args.h"
 #include "virtual_camera/verifier.h"
 
-#include <opencv2/imgcodecs.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <filesystem>
@@ -26,14 +24,6 @@ std::vector<std::filesystem::path> ListFiles(const std::filesystem::path& dir) {
   }
   std::sort(files.begin(), files.end());
   return files;
-}
-
-cv::Mat ReadFrame(const std::filesystem::path& path) {
-  const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
-  if (image.empty()) {
-    throw std::runtime_error("failed to read image: " + path.string());
-  }
-  return image;
 }
 
 }  // namespace
@@ -68,7 +58,8 @@ int main(int argc, char** argv) {
                 std::filesystem::path(args.dataset_root) /
                 config.paths.image_dir_path / source_camera.image_dir;
             for (const auto& image_path : ListFiles(input_dir)) {
-              const cv::Mat image = ReadFrame(image_path);
+              const vc::GpuImage image =
+                  orchestrator.ReadImage(image_path.string());
               const std::vector<vc::UndistortFrameResult> results =
                   orchestrator.ProcessUndistortFrame(source_camera.camera_id,
                                                      image);
@@ -107,7 +98,8 @@ int main(int argc, char** argv) {
                 std::filesystem::path(args.dataset_root) /
                 config.paths.image_dir_path / source_camera.image_dir;
             for (const auto& image_path : ListFiles(input_dir)) {
-              const cv::Mat image = ReadFrame(image_path);
+              const vc::GpuImage image =
+                  orchestrator.ReadImage(image_path.string());
               const std::vector<vc::VirtualCameraFrameResult> results =
                   orchestrator.ProcessVirtualCameraFrame(
                       source_camera.camera_id, image);

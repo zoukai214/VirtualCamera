@@ -27,7 +27,7 @@ struct UndistortCache {
 
 struct UndistortFrameResult {
   UndistortTaskConfig task;
-  cv::Mat image;
+  GpuImage image;
 };
 
 UndistortCache BuildUndistortCache(const PipelineConfig& config,
@@ -36,7 +36,7 @@ void SaveUndistortCacheArtifacts(const PipelineConfig& config,
                                  const UndistortCache& cache,
                                  const std::string& output_root);
 std::vector<UndistortFrameResult> ProcessUndistortFrame(
-    const UndistortCache& cache, int camera_id, const cv::Mat& image);
+    const UndistortCache& cache, int camera_id, const GpuImage& image);
 void SaveUndistortFrameResult(const PipelineConfig& config,
                               const UndistortFrameResult& result,
                               const std::string& output_root,

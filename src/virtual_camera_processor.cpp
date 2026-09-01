@@ -201,7 +201,11 @@ void SaveVirtualCameraCacheArtifacts(const PipelineConfig& config,
 }
 
 std::vector<VirtualCameraFrameResult> ProcessVirtualCameraFrame(
-    const VirtualCameraCache& cache, int camera_id, const cv::Mat& image) {
+    const VirtualCameraCache& cache, int camera_id, const GpuImage& image) {
+  if (image.image.empty()) {
+    throw std::runtime_error("GPU image must not be empty");
+  }
+
   std::vector<VirtualCameraFrameResult> results;
   const auto found = cache.entries_by_camera_id.find(camera_id);
   if (found == cache.entries_by_camera_id.end()) {
@@ -213,7 +217,7 @@ std::vector<VirtualCameraFrameResult> ProcessVirtualCameraFrame(
     const VirtualCameraCacheEntry& entry = cache.entries.at(entry_index);
     VirtualCameraFrameResult result;
     result.task = entry.task;
-    result.image = GpuRemap(image, entry.gpu_maps);
+    result.image.image = GpuRemap(image.image, entry.gpu_maps);
     results.push_back(std::move(result));
   }
   return results;
@@ -228,9 +232,15 @@ void SaveVirtualCameraFrameResult(const PipelineConfig& config,
       result.task.save_dir;
   EnsureDirectory(output_dir.string());
   const std::string output_name = result.task.file_prefix + "_" + input_filename;
-  if (!cv::imwrite((output_dir / output_name).string(), result.image)) {
+  if (result.image.image.empty()) {
+    throw std::runtime_error("GPU result image must not be empty");
+  }
+  const std::string output_path = (output_dir / output_name).string();
+  cv::Mat cpu_image;
+  result.image.image.download(cpu_image);
+  if (!cv::imwrite(output_path, cpu_image)) {
     throw std::runtime_error("failed to write image: " +
-                             (output_dir / output_name).string());
+                             output_path);
   }
 }
 
@@ -266,10 +276,7 @@ void RunVirtualCameraPipeline(const PipelineConfig& config,
         std::filesystem::path(dataset_root) / config.paths.image_dir_path /
         input.image_dir;
     for (const auto& path : ListFiles(input_dir)) {
-      const cv::Mat image = cv::imread(path.string(), cv::IMREAD_COLOR);
-      if (image.empty()) {
-        throw std::runtime_error("failed to read image: " + path.string());
-      }
+      const GpuImage image = ReadImage(path.string());
       const std::vector<VirtualCameraFrameResult> results =
           ProcessVirtualCameraFrame(cache, input.camera_id, image);
       for (const auto& result : results) {
