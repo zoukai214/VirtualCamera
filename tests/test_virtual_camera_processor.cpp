@@ -557,15 +557,21 @@ void TestProcessVirtualCameraFrameUsesCameraIdCache() {
 
   const vc::VirtualCameraCache cache = vc::BuildVirtualCameraCache(config, (root / "dataset").string());
   cv::Mat image(8, 16, CV_8UC3, cv::Scalar(9, 8, 7));
+  cv::cuda::GpuMat gpu_image;
+  gpu_image.upload(image);
+  const vc::GpuImage input{gpu_image};
 
   const std::vector<vc::VirtualCameraFrameResult> results =
-      vc::ProcessVirtualCameraFrame(cache, 1, image);
+      vc::ProcessVirtualCameraFrame(cache, 1, input);
   const std::vector<vc::VirtualCameraFrameResult> missing_results =
-      vc::ProcessVirtualCameraFrame(cache, 99, image);
+      vc::ProcessVirtualCameraFrame(cache, 99, input);
 
   Expect(results.size() == 1,
          "matching camera id should produce one virtual frame");
-  Expect(results.front().image.rows == 8 && results.front().image.cols == 16,
+  Expect(!results.front().image.image.empty(),
+         "virtual frame should remain on GPU");
+  Expect(results.front().image.image.rows == 8 &&
+             results.front().image.image.cols == 16,
          "virtual frame should use configured virtual image size");
   Expect(results.front().task.file_prefix == "fw110",
          "virtual frame result should keep task metadata");
@@ -573,12 +579,31 @@ void TestProcessVirtualCameraFrameUsesCameraIdCache() {
          "unknown camera id should produce no virtual frames");
 }
 
+void TestProcessVirtualCameraFrameRejectsEmptyGpuImage() {
+  const std::filesystem::path root = MakeTestRoot("reject_empty_gpu_image");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  config.virtual_tasks.push_back(MakeSmallLoggingTask());
+
+  const vc::VirtualCameraCache cache =
+      vc::BuildVirtualCameraCache(config, (root / "dataset").string());
+  const vc::GpuImage empty_image;
+  bool thrown = false;
+  try {
+    vc::ProcessVirtualCameraFrame(cache, 1, empty_image);
+  } catch (const std::runtime_error& error) {
+    thrown = std::string(error.what()).find("GPU image must not be empty") !=
+             std::string::npos;
+  }
+  Expect(thrown, "virtual camera should reject an empty GPU image");
+}
+
 void TestSaveVirtualCameraFrameResultWritesExistingOutputLayout() {
   const std::filesystem::path root = MakeTestRoot("save_frame_result");
   vc::PipelineConfig config = MakeTinyFixtureConfig(root);
   vc::VirtualCameraFrameResult result;
   result.task = MakeSmallLoggingTask();
-  result.image = cv::Mat(8, 16, CV_8UC3, cv::Scalar(1, 2, 3));
+  cv::Mat image(8, 16, CV_8UC3, cv::Scalar(1, 2, 3));
+  result.image.image.upload(image);
 
   vc::SaveVirtualCameraFrameResult(config, result, root.string(), "source.jpg");
 
@@ -601,6 +626,7 @@ int main() {
   TestRunVirtualCameraPipelineWritesOutputsForRealDataset();
   TestBuildVirtualCameraCacheGroupsEntriesByCameraId();
   TestProcessVirtualCameraFrameUsesCameraIdCache();
+  TestProcessVirtualCameraFrameRejectsEmptyGpuImage();
   TestSaveVirtualCameraFrameResultWritesExistingOutputLayout();
   return 0;
 }

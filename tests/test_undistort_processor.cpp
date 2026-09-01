@@ -292,15 +292,21 @@ void TestProcessUndistortFrameUsesCameraIdCache() {
 
   const vc::UndistortCache cache = vc::BuildUndistortCache(config, (root / "dataset").string());
   cv::Mat image(8, 16, CV_8UC3, cv::Scalar(4, 5, 6));
+  cv::cuda::GpuMat gpu_image;
+  gpu_image.upload(image);
+  const vc::GpuImage input{gpu_image};
 
   const std::vector<vc::UndistortFrameResult> results =
-      vc::ProcessUndistortFrame(cache, 1, image);
+      vc::ProcessUndistortFrame(cache, 1, input);
   const std::vector<vc::UndistortFrameResult> missing_results =
-      vc::ProcessUndistortFrame(cache, 99, image);
+      vc::ProcessUndistortFrame(cache, 99, input);
 
   Expect(results.size() == 1,
          "matching camera id should produce one undistort frame");
-  Expect(results.front().image.rows == 8 && results.front().image.cols == 16,
+  Expect(!results.front().image.image.empty(),
+         "undistort frame should remain on GPU");
+  Expect(results.front().image.image.rows == 8 &&
+             results.front().image.image.cols == 16,
          "undistort frame should use configured image size");
   Expect(results.front().task.image_dir == "front_wide/",
          "undistort frame result should keep task metadata");
@@ -308,12 +314,34 @@ void TestProcessUndistortFrameUsesCameraIdCache() {
          "unknown camera id should produce no undistort frames");
 }
 
+void TestProcessUndistortFrameRejectsEmptyGpuImage() {
+  const std::filesystem::path root = MakeTestRoot("reject_empty_gpu_image");
+  vc::PipelineConfig config = MakeTinyFixtureConfig(root);
+  vc::UndistortTaskConfig task =
+      MakeTask("calib_camera_front_wide_to_car.json", "front_wide/");
+  task.new_intrinsic = MakeSmallNewIntrinsic();
+  config.undistort_tasks.push_back(task);
+
+  const vc::UndistortCache cache =
+      vc::BuildUndistortCache(config, (root / "dataset").string());
+  const vc::GpuImage empty_image;
+  bool thrown = false;
+  try {
+    vc::ProcessUndistortFrame(cache, 1, empty_image);
+  } catch (const std::runtime_error& error) {
+    thrown = std::string(error.what()).find("GPU image must not be empty") !=
+             std::string::npos;
+  }
+  Expect(thrown, "undistort should reject an empty GPU image");
+}
+
 void TestSaveUndistortFrameResultWritesExistingOutputLayout() {
   const std::filesystem::path root = MakeTestRoot("save_frame_result");
   vc::PipelineConfig config = MakeTinyFixtureConfig(root);
   vc::UndistortFrameResult result;
   result.task = MakeTask("calib_camera_front_wide_to_car.json", "front_wide/");
-  result.image = cv::Mat(8, 16, CV_8UC3, cv::Scalar(1, 2, 3));
+  cv::Mat image(8, 16, CV_8UC3, cv::Scalar(1, 2, 3));
+  result.image.image.upload(image);
 
   vc::SaveUndistortFrameResult(config, result, root.string(), "source.jpg");
 
@@ -333,6 +361,7 @@ int main() {
   TestRunUndistortPipelineSkipsTaskLogsWhenShowinfoDisabled();
   TestBuildUndistortCacheIndexesEntriesByCameraId();
   TestProcessUndistortFrameUsesCameraIdCache();
+  TestProcessUndistortFrameRejectsEmptyGpuImage();
   TestSaveUndistortFrameResultWritesExistingOutputLayout();
   return 0;
 }

@@ -28,7 +28,7 @@ struct VirtualCameraCache {
 
 struct VirtualCameraFrameResult {
   VirtualCameraTaskConfig task;
-  cv::Mat image;
+  GpuImage image;
 };
 
 VirtualCameraCache BuildVirtualCameraCache(const PipelineConfig& config,
@@ -37,7 +37,7 @@ void SaveVirtualCameraCacheArtifacts(const PipelineConfig& config,
                                      const VirtualCameraCache& cache,
                                      const std::string& output_root);
 std::vector<VirtualCameraFrameResult> ProcessVirtualCameraFrame(
-    const VirtualCameraCache& cache, int camera_id, const cv::Mat& image);
+    const VirtualCameraCache& cache, int camera_id, const GpuImage& image);
 void SaveVirtualCameraFrameResult(const PipelineConfig& config,
                                   const VirtualCameraFrameResult& result,
                                   const std::string& output_root,
