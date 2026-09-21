@@ -9,6 +9,31 @@ def expect(condition, message):
         raise RuntimeError(message)
 
 
+def try_cv2_cuda():
+    """返回带 CUDA 的 cv2 模块；环境不可用时返回 None 使直传用例跳过。"""
+    try:
+        import cv2
+    except ImportError:
+        return None
+    if not hasattr(cv2, "cuda_GpuMat"):
+        return None
+    if cv2.cuda.getCudaEnabledDeviceCount() <= 0:
+        return None
+    return cv2
+
+
+def expect_raises(exception_type, message):
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            try:
+                fn(*args, **kwargs)
+            except exception_type:
+                return
+            raise RuntimeError(message)
+        return wrapper
+    return decorator
+
+
 def make_test_root(name):
     root = Path("build/test_tmp/python_pipeline_orchestrator") / name
     if root.exists():
@@ -157,6 +182,46 @@ def write_config_json(root):
     return config_path
 
 
+def run_cv2_gpu_mat_input(root, orchestrator, cv2):
+    import numpy as np
+
+    # 生成与 write_tiny_ppm 相同的 16x8 彩色图并上传到 GPU。
+    height, width = 8, 16
+    rows = np.arange(height).reshape(-1, 1)
+    cols = np.arange(width).reshape(1, -1)
+    rgb = np.zeros((height, width, 3), dtype=np.uint8)
+    rgb[:, :, 0] = cols * 7
+    rgb[:, :, 1] = rows * 13
+    rgb[:, :, 2] = (rows + cols) * 5
+    gpu_mat = cv2.cuda_GpuMat()
+    gpu_mat.upload(rgb)
+
+    virtual_result_id = orchestrator.process_virtual_camera_frame(1, gpu_mat)
+    undistort_result_id = orchestrator.process_undistort_frame(1, gpu_mat)
+
+    output_virtual = root / "cv2_virtual_output"
+    output_undistort = root / "cv2_undistort_output"
+    orchestrator.save_virtual_camera_frame_results(
+        virtual_result_id, str(output_virtual), "synthetic_front_wide.ppm"
+    )
+    orchestrator.save_undistort_frame_results(
+        undistort_result_id, str(output_undistort), "synthetic_front_wide.ppm"
+    )
+    expect((output_virtual / "image_virtual_camera" / "front_wide_110" /
+            "fw110_synthetic_front_wide.ppm").exists(),
+           "cv2.cuda_GpuMat virtual camera input should produce output image")
+    expect((output_undistort / "image_undistortion" / "front_wide" /
+            "synthetic_front_wide.ppm").exists(),
+           "cv2.cuda_GpuMat undistort input should produce output image")
+
+    # 非 cuda_GpuMat 对象必须被拒绝。
+    @expect_raises(TypeError, "non cv2.cuda_GpuMat input should raise TypeError")
+    def reject_wrong_type():
+        orchestrator.process_virtual_camera_frame(1, "not-a-gpu-mat")
+
+    reject_wrong_type()
+
+
 def main():
     sys.path.insert(0, str(Path("build/python").resolve()))
     import virtual_camera
@@ -177,6 +242,13 @@ def main():
 
     orchestrator.save_virtual_camera_artifacts(str(root))
     orchestrator.save_undistort_artifacts(str(root))
+
+    cv2 = try_cv2_cuda()
+    if cv2 is None:
+        print("skip cv2.cuda_GpuMat input test: cv2 with CUDA not available")
+    else:
+        run_cv2_gpu_mat_input(root, orchestrator, cv2)
+
     source_image = dataset_root / "image_raw" / "front_wide" / "synthetic_front_wide.ppm"
     image = orchestrator.read_image(str(source_image))
     expect(isinstance(image, virtual_camera.GpuImage),

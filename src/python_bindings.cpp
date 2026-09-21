@@ -1,5 +1,6 @@
 #include "virtual_camera/pipeline_orchestrator.h"
 
+#include <opencv2/core/cuda.hpp>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
@@ -10,6 +11,55 @@
 #include <vector>
 
 namespace py = pybind11;
+
+namespace pybind11 { namespace detail {
+
+template <>
+struct type_caster<cv::cuda::GpuMat> {
+ public:
+  PYBIND11_TYPE_CASTER(cv::cuda::GpuMat, _("cv2.cuda_GpuMat"));
+
+  bool load(handle src, bool) {
+    py::object cv2;
+    try {
+      cv2 = py::module_::import("cv2");
+    } catch (const py::error_already_set&) {
+      throw py::type_error(
+          "expected cv2.cuda_GpuMat, but the cv2 module is not installed");
+    }
+    py::object gpu_mat_type;
+    try {
+      gpu_mat_type = cv2.attr("cuda_GpuMat");
+    } catch (const py::error_already_set&) {
+      throw py::type_error(
+          "expected cv2.cuda_GpuMat, but this cv2 build has no CUDA support");
+    }
+    if (!py::isinstance(src, gpu_mat_type)) {
+      return false;
+    }
+    py::object gpu_mat = py::reinterpret_borrow<py::object>(src);
+    if (py::cast<bool>(gpu_mat.attr("empty")())) {
+      throw py::type_error("cv2.cuda_GpuMat must not be empty");
+    }
+    void* ptr = reinterpret_cast<void*>(
+        py::cast<uintptr_t>(gpu_mat.attr("cudaPtr")()));
+    const int rows = py::cast<int>(gpu_mat.attr("rows"));
+    const int cols = py::cast<int>(gpu_mat.attr("cols"));
+    const int type = py::cast<int>(gpu_mat.attr("type")());
+    const size_t step = py::cast<size_t>(gpu_mat.attr("step"));
+
+    // 借用 Python 对象的显存构造视图后立即拷贝为自有内存，避免其被 GC 后悬空。
+    const cv::cuda::GpuMat borrowed(rows, cols, type, ptr, step);
+    value = borrowed.clone();
+    return !value.empty();
+  }
+
+  static handle cast(const cv::cuda::GpuMat&, return_value_policy, handle) {
+    return handle();
+  }
+};
+
+}}  // namespace pybind11::detail
 
 namespace {
 
@@ -79,9 +129,14 @@ class PyPipelineOrchestrator {
 
   int ProcessVirtualCameraFrame(int camera_id,
                                 const vc::GpuImage& image) const {
+    return ProcessVirtualCameraFrame(camera_id, image.image);
+  }
+
+  int ProcessVirtualCameraFrame(int camera_id,
+                                const cv::cuda::GpuMat& image) const {
     const int result_id = next_result_id_++;
     virtual_results_by_id_[result_id] =
-        orchestrator_.ProcessVirtualCameraFrame(camera_id, image);
+        orchestrator_.ProcessVirtualCameraFrame(camera_id, vc::GpuImage{image});
     return result_id;
   }
 
@@ -106,9 +161,14 @@ class PyPipelineOrchestrator {
   }
 
   int ProcessUndistortFrame(int camera_id, const vc::GpuImage& image) const {
+    return ProcessUndistortFrame(camera_id, image.image);
+  }
+
+  int ProcessUndistortFrame(int camera_id,
+                            const cv::cuda::GpuMat& image) const {
     const int result_id = next_result_id_++;
     undistort_results_by_id_[result_id] =
-        orchestrator_.ProcessUndistortFrame(camera_id, image);
+        orchestrator_.ProcessUndistortFrame(camera_id, vc::GpuImage{image});
     return result_id;
   }
 
@@ -152,8 +212,13 @@ PYBIND11_MODULE(virtual_camera, module) {
       .def("read_image", &PyPipelineOrchestrator::ReadImage,
            py::arg("image_path"))
       .def("process_virtual_camera_frame",
-           &PyPipelineOrchestrator::ProcessVirtualCameraFrame,
+           static_cast<int (PyPipelineOrchestrator::*)(int, const vc::GpuImage&) const>(
+               &PyPipelineOrchestrator::ProcessVirtualCameraFrame),
            py::arg("camera_id"), py::arg("image"))
+      .def("process_virtual_camera_frame",
+           static_cast<int (PyPipelineOrchestrator::*)(int, const cv::cuda::GpuMat&) const>(
+               &PyPipelineOrchestrator::ProcessVirtualCameraFrame),
+           py::arg("camera_id"), py::arg("gpu_mat"))
       .def("save_virtual_camera_frame_results",
            &PyPipelineOrchestrator::SaveVirtualCameraFrameResults,
            py::arg("result_id"), py::arg("output_root"), py::arg("input_filename"))
@@ -161,8 +226,13 @@ PYBIND11_MODULE(virtual_camera, module) {
            &PyPipelineOrchestrator::ProcessAndSaveVirtualCameraFrame,
            py::arg("camera_id"), py::arg("image_path"), py::arg("output_root"))
       .def("process_undistort_frame",
-           &PyPipelineOrchestrator::ProcessUndistortFrame,
+           static_cast<int (PyPipelineOrchestrator::*)(int, const vc::GpuImage&) const>(
+               &PyPipelineOrchestrator::ProcessUndistortFrame),
            py::arg("camera_id"), py::arg("image"))
+      .def("process_undistort_frame",
+           static_cast<int (PyPipelineOrchestrator::*)(int, const cv::cuda::GpuMat&) const>(
+               &PyPipelineOrchestrator::ProcessUndistortFrame),
+           py::arg("camera_id"), py::arg("gpu_mat"))
       .def("save_undistort_frame_results",
            &PyPipelineOrchestrator::SaveUndistortFrameResults,
            py::arg("result_id"), py::arg("output_root"), py::arg("input_filename"))

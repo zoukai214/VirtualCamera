@@ -346,6 +346,22 @@ orchestrator.process_and_save_undistort_frame(
 `process_*_frame()` 只接收该 GPU 图片；结果也保留在 GPU，直到
 `save_*_frame_results()` 写文件时才下载到 CPU。
 
+`process_*_frame()` 同时接受 `cv2.cuda_GpuMat` 对象直传，由调用方自行把图片
+上传到 GPU（要求 Python 环境安装带 CUDA 构建的 cv2，pip 官方 opencv-python
+不含 CUDA 模块）：
+
+```python
+import cv2
+import numpy as np
+
+gpu_mat = cv2.cuda_GpuMat()
+gpu_mat.upload(np.zeros((2160, 3840, 3), dtype=np.uint8))
+result_id = orchestrator.process_virtual_camera_frame(1, gpu_mat)
+```
+
+传入后 C++ 侧立即拷贝为自有显存，Python 对象随后可安全释放；非
+`cv2.cuda_GpuMat` 对象会被拒绝并抛 `TypeError`。
+
 ## Python 全流程示例
 
 下面示例会保存虚拟相机和去畸变 artifacts，并处理每个输入目录中的图片：
