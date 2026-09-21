@@ -49,6 +49,13 @@ int CameraIdFromIntrinsicKey(const std::string& intri_key) {
       return item.first;
     }
   }
+  // 兼容无 camera- 前缀的 key(如 parsed 数据集使用 front-wide 而非 camera-front-wide)
+  for (const auto& item : kCameraNames) {
+    const std::string name = item.second;
+    if (name.rfind("camera-", 0) == 0 && name.substr(7) == intri_key) {
+      return item.first;
+    }
+  }
   throw std::runtime_error("unknown camera intrinsic key: " + intri_key);
 }
 

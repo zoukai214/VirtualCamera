@@ -19,8 +19,8 @@
     {
       "desc": "front fov30->front fov 30",
       "conf_json": "calib_camera_front_narrow_to_car.json",
-      "conf_intri_key": "camera-front-narrow",
-      "conf_extri_key": "camera-front-narrow-to-car",
+      "conf_intri_key": "front-narrow",
+      "conf_extri_key": "front-narrow-to-car",
       "image_dir": "gac_cam_orig_ft30_encoded/",
       "save_dir": "front_narrow_30/",
       "calib_json": "calib_cam_front_narrow_fov30.json",
@@ -55,8 +55,8 @@
     {
       "desc": "front fov120->front fov 110",
       "conf_json": "calib_camera_front_wide_to_car.json",
-      "conf_intri_key": "camera-front-wide",
-      "conf_extri_key": "camera-front-wide-to-car",
+      "conf_intri_key": "front-wide",
+      "conf_extri_key": "front-wide-to-car",
       "image_dir": "gac_cam_orig_fw120_encoded/",
       "save_dir": "front_wide_110/",
       "calib_json": "calib_cam_front_wide_fov110.json",
@@ -91,8 +91,8 @@
     {
       "desc": "front left fov100->front left fov 99",
       "conf_json": "calib_camera_left_front_to_car.json",
-      "conf_intri_key": "camera-left-front",
-      "conf_extri_key": "camera-left-front-to-car",
+      "conf_intri_key": "left-front",
+      "conf_extri_key": "left-front-to-car",
       "image_dir": "gac_cam_orig_fl99_encoded/",
       "save_dir": "left_front_99/",
       "calib_json": "calib_cam_left_front_fov99.json",
@@ -127,8 +127,8 @@
     {
       "desc": "rear left fov100->rear left fov 99",
       "conf_json": "calib_camera_left_back_to_car.json",
-      "conf_intri_key": "camera-left-back",
-      "conf_extri_key": "camera-left-back-to-car",
+      "conf_intri_key": "left-back",
+      "conf_extri_key": "left-back-to-car",
       "image_dir": "gac_cam_orig_rl99_encoded/",
       "save_dir": "left_back_99/",
       "calib_json": "calib_cam_left_back_fov99.json",
@@ -163,8 +163,8 @@
     {
       "desc": "front right fov 100->front right fov 99",
       "conf_json": "calib_camera_right_front_to_car.json",
-      "conf_intri_key": "camera-right-front",
-      "conf_extri_key": "camera-right-front-to-car",
+      "conf_intri_key": "right-front",
+      "conf_extri_key": "right-front-to-car",
       "image_dir": "gac_cam_orig_fr99_encoded/",
       "save_dir": "right_front_99/",
       "calib_json": "calib_cam_right_front_fov99.json",
@@ -199,8 +199,8 @@
     {
       "desc": "rear right fov 100->rear right fov 99",
       "conf_json": "calib_camera_right_back_to_car.json",
-      "conf_intri_key": "camera-right-back",
-      "conf_extri_key": "camera-right-back-to-car",
+      "conf_intri_key": "right-back",
+      "conf_extri_key": "right-back-to-car",
       "image_dir": "gac_cam_orig_rr99_encoded/",
       "save_dir": "right_back_99/",
       "calib_json": "calib_cam_right_back_fov99.json",
@@ -235,8 +235,8 @@
     {
       "desc": "rear fov 60->rear fov 50",
       "conf_json": "calib_camera_back_to_car.json",
-      "conf_intri_key": "camera-back",
-      "conf_extri_key": "camera-back-to-car",
+      "conf_intri_key": "back",
+      "conf_extri_key": "back-to-car",
       "image_dir": "gac_cam_orig_r50_encoded/",
       "save_dir": "back_50/",
       "calib_json": "calib_cam_back_fov50.json",
@@ -271,8 +271,8 @@
     {
       "desc": "front fov120->front fov 60",
       "conf_json": "calib_camera_front_wide_to_car.json",
-      "conf_intri_key": "camera-front-wide",
-      "conf_extri_key": "camera-front-wide-to-car",
+      "conf_intri_key": "front-wide",
+      "conf_extri_key": "front-wide-to-car",
       "image_dir": "gac_cam_orig_fw120_encoded/",
       "save_dir": "front_wide_60/",
       "calib_json": "calib_cam_front_wide_fov60.json",
@@ -307,8 +307,8 @@
     {
       "desc": "front fov30->front fov 20",
       "conf_json": "calib_camera_front_narrow_to_car.json",
-      "conf_intri_key": "camera-front-narrow",
-      "conf_extri_key": "camera-front-narrow-to-car",
+      "conf_intri_key": "front-narrow",
+      "conf_extri_key": "front-narrow-to-car",
       "image_dir": "gac_cam_orig_ft30_encoded/",
       "save_dir": "front_narrow_20/",
       "calib_json": "calib_cam_front_narrow_fov20.json",
@@ -343,8 +343,8 @@
     {
       "desc": "rear left fov100->rear left fov 30",
       "conf_json": "calib_camera_left_back_to_car.json",
-      "conf_intri_key": "camera-left-back",
-      "conf_extri_key": "camera-left-back-to-car",
+      "conf_intri_key": "left-back",
+      "conf_extri_key": "left-back-to-car",
       "image_dir": "gac_cam_orig_rl99_encoded/",
       "save_dir": "left_back_30/",
       "calib_json": "calib_cam_left_back_fov30.json",
@@ -379,8 +379,8 @@
     {
       "desc": "rear right fov 100->rear right fov 30",
       "conf_json": "calib_camera_right_back_to_car.json",
-      "conf_intri_key": "camera-right-back",
-      "conf_extri_key": "camera-right-back-to-car",
+      "conf_intri_key": "right-back",
+      "conf_extri_key": "right-back-to-car",
       "image_dir": "gac_cam_orig_rr99_encoded/",
       "save_dir": "right_back_30/",
       "calib_json": "calib_cam_right_back_fov30.json",
@@ -415,8 +415,8 @@
     {
       "desc": "front wide -> front wide 30",
       "conf_json": "calib_camera_front_wide_to_car.json",
-      "conf_intri_key": "camera-front-wide",
-      "conf_extri_key": "camera-front-wide-to-car",
+      "conf_intri_key": "front-wide",
+      "conf_extri_key": "front-wide-to-car",
       "image_dir": "gac_cam_orig_fw120_encoded/",
       "save_dir": "front_wide_30/",
       "calib_json": "calib_cam_front_wide_fov30.json",
@@ -452,8 +452,8 @@
   "undistort_configs": [
     {
       "conf_json": "calib_camera_front_narrow_to_car.json",
-      "intri_key": "camera-front-narrow",
-      "extri_key": "camera-front-narrow-to-car",
+      "intri_key": "front-narrow",
+      "extri_key": "front-narrow-to-car",
       "image_dir": "gac_cam_orig_ft30_encoded/",
       "new_intrinsic": {
         "fov": 30,
@@ -468,8 +468,8 @@
     },
     {
       "conf_json": "calib_camera_front_wide_to_car.json",
-      "intri_key": "camera-front-wide",
-      "extri_key": "camera-front-wide-to-car",
+      "intri_key": "front-wide",
+      "extri_key": "front-wide-to-car",
       "image_dir": "gac_cam_orig_fw120_encoded/",
       "new_intrinsic": {
         "fov": 110,
@@ -484,8 +484,8 @@
     },
     {
       "conf_json": "calib_camera_left_front_to_car.json",
-      "intri_key": "camera-left-front",
-      "extri_key": "camera-left-front-to-car",
+      "intri_key": "left-front",
+      "extri_key": "left-front-to-car",
       "image_dir": "gac_cam_orig_fl99_encoded/",
       "new_intrinsic": {
         "fov": 99,
@@ -500,8 +500,8 @@
     },
     {
       "conf_json": "calib_camera_left_back_to_car.json",
-      "intri_key": "camera-left-back",
-      "extri_key": "camera-left-back-to-car",
+      "intri_key": "left-back",
+      "extri_key": "left-back-to-car",
       "image_dir": "gac_cam_orig_rl99_encoded/",
       "new_intrinsic": {
         "fov": 99,
@@ -516,8 +516,8 @@
     },
     {
       "conf_json": "calib_camera_right_front_to_car.json",
-      "intri_key": "camera-right-front",
-      "extri_key": "camera-right-front-to-car",
+      "intri_key": "right-front",
+      "extri_key": "right-front-to-car",
       "image_dir": "gac_cam_orig_fr99_encoded/",
       "new_intrinsic": {
         "fov": 99,
@@ -532,8 +532,8 @@
     },
     {
       "conf_json": "calib_camera_right_back_to_car.json",
-      "intri_key": "camera-right-back",
-      "extri_key": "camera-right-back-to-car",
+      "intri_key": "right-back",
+      "extri_key": "right-back-to-car",
       "image_dir": "gac_cam_orig_rr99_encoded/",
       "new_intrinsic": {
         "fov": 99,
@@ -548,8 +548,8 @@
     },
     {
       "conf_json": "calib_camera_back_to_car.json",
-      "intri_key": "camera-back",
-      "extri_key": "camera-back-to-car",
+      "intri_key": "back",
+      "extri_key": "back-to-car",
       "image_dir": "gac_cam_orig_r50_encoded/",
       "new_intrinsic": {
         "fov": 50,
